@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; worker-src 'self' blob:; frame-src 'self' about:">
+    <title>SVG Editor Generator</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="vendor/ide/workbench.css">
+</head>
+
+<body>
+    <header>
+        <div class="brand">⬡ SVG EDITOR <b>GENERATOR</b><small>VECTOR DESIGN SYSTEM / 02</small></div><span
+            class="local">PROJETO LOCAL</span>
+        <nav><button id="open">Abrir projeto</button><button id="save">Salvar projeto</button><button id="export"
+                class="primary">↗ Exportar SVG</button></nav>
+    </header>
+    <main>
+        <aside><label class="section">01 / BIBLIOTECA</label>
+            <h2>Comece com uma forma</h2>
+            <p>Geometria para sua próxima interface.</p>
+            <div class="presets"><button data-type="rectangle">▭<small>Retângulo</small></button><button
+                    data-type="triangle">△<small>Triângulo</small></button><button
+                    data-type="hexagon">⬡<small>Hexágono</small></button><button
+                    data-type="diamond">◇<small>Losango</small></button></div><label class="section">02 / CAMADAS</label>
+            <div id="layers"></div><button id="duplicate" class="wide">⧉ Duplicar forma</button><button id="delete"
+                class="wide">Excluir selecionada</button>
+            <div class="tip"><b>◈ DICA DO EDITOR</b>
+                <p>Use Linhas e clique nas bordas para selecioná-las juntas. Arraste no vazio para selecionar pontos por área. Clique duas vezes numa borda para criar um ponto.
+                </p>
+            </div>
+            <p class="version">● PRONTO PARA CRIAR / v1.6</p>
+        </aside>
+        <section class="workspace">
+            <div class="toolbar">
+                <div><button id="select" class="active">↖ Selecionar</button><button id="lineSelect" title="Clique nas bordas para somar segmentos à seleção (L)">╱ Linhas</button><button id="hand">✥ Mover</button><button
+                        id="undo" title="Ctrl+Z">↶</button><button id="redo" title="Ctrl+Y">↷</button>
+                    <div class="boolean-control"><button id="booleanMenu" aria-expanded="false">◧ Combinar ▾</button>
+                        <div id="booleanOptions" class="boolean-options" hidden>
+                            <button data-operation="union">◧ União <small>Alt+Shift+U</small></button>
+                            <button data-operation="difference">◩ Subtrair <small>Alt+Shift+S</small></button>
+                            <button data-operation="intersection">◨ Interseção <small>Alt+Shift+I</small></button>
+                            <button data-operation="xor">◪ Excluir sobreposição <small>Alt+Shift+E</small></button>
+                            <button data-operation="flatten">◇ Achatar <small>Alt+Shift+F</small></button>
+                            <p>Shift + clique nas formas ou camadas para selecionar várias. Subtrair recorta a forma inferior com as superiores.</p>
+                        </div>
+                    </div>
+                </div>
+                <div><label><input id="grid" type="checkbox" checked> Grade</label><button id="magnet" class="active" aria-pressed="true" title="Ímã: ajustar à grade (M)">🧲 Ímã</button><button id="gridSettings">Ajustar grade</button><button id="background" aria-label="Alternar fundo claro ou escuro">☀ Fundo claro</button><button id="fit">Enquadrar</button></div>
+            </div>
+            <div class="stage">
+                <div class="canvas-label">ÁREA DE CRIAÇÃO <span>800 × 500</span></div><svg id="canvas">
+                    <defs>
+                        <pattern id="pattern" width="24" height="24" patternUnits="userSpaceOnUse">
+                            <path d="M24 0H0V24" fill="none" stroke="#30333b" stroke-width=".6" />
+                        </pattern>
+                        <pattern id="dotPattern" width="24" height="24" patternUnits="userSpaceOnUse">
+                            <circle cx="0" cy="0" r="1.2" fill="#515763" />
+                        </pattern>
+                    </defs>
+                    <g id="camera">
+                        <rect id="gridRect" x="-10000" y="-10000" width="20000" height="20000" fill="url(#pattern)" />
+                        <rect width="800" height="500" fill="#17191d" fill-opacity=".35" stroke="#514432"
+                            pointer-events="none" />
+                        <g id="shapes"></g>
+                        <g id="edgeHighlights" pointer-events="none"></g>
+                        <g id="handles"></g>
+                        <g id="marquee" pointer-events="none"></g>
+                    </g>
+                </svg>
+                <div id="emptyCanvas" class="empty-canvas"><span>◇</span><h2>Sua próxima forma começa aqui</h2><p>Escolha uma forma padrão na biblioteca.<br>Crie os cantos e recortes do seu jeito.</p></div>
+                <div class="canvas-bottom"><span id="coords">X 0 · Y 0</span>
+                    <div><button id="minus">−</button><output id="zoom">100%</output><button id="plus">+</button></div>
+                </div>
+            </div>
+            <footer>ARRASTE NO VAZIO PARA SELECIONAR PONTOS <span>Linhas: clique para somar · Shift: ampliar seleção</span><b
+                    id="count"></b></footer>
+        </section>
+        <aside class="right"><label class="section">03 / PROPRIEDADES</label>
+            <h2 id="title">Nenhuma forma selecionada</h2><label>Nome da forma<input id="name" maxlength="80"></label>
+            <div class="two"><label>Largura (px)<input id="shapeWidth" type="number" min="1" max="10000" step="1"></label><label>Altura (px)<input id="shapeHeight" type="number" min="1" max="10000" step="1"></label></div>
+            <label class="ratio"><input id="lockRatio" type="checkbox"> Manter proporção</label><p class="size-tip">Arraste os quadrados dos cantos. Shift mantém a proporção.</p><label
+                class="section sub">APARÊNCIA</label><label>Preenchimento<div class="color"><input id="fill"
+                        type="color"><code id="fillCode"></code><label><input id="noFill" type="checkbox"> Sem</label>
+                </div></label><label>Borda<div class="color"><input id="stroke" type="color"><code
+                        id="strokeCode"></code></div></label>
+            <div class="two"><label>Espessura<input id="strokeWidth" type="number" min="0" max="30"
+                        step=".5"></label><label>Opacidade (%)<input id="opacity" type="number" min="0"
+                        max="100"></label></div><label>Junção<select id="join">
+                    <option value="miter">Angular</option>
+                    <option value="round">Arredondada</option>
+                    <option value="bevel">Chanfrada</option>
+                </select></label><p>Junção altera a borda nos cantos retos; use espessura maior para ver o efeito. Cantos com raio já são curvos.</p><label class="section sub">GEOMETRIA</label>
+            <div class="two"><label>Corner radius<input id="radius" type="number" min="0" max="10000" step="1" value="0"></label><label>Unidade<select id="radiusUnit"><option value="px">px</option><option value="%">%</option></select></label></div>
+            <p>Arredonda os pontos selecionados. Sem seleção múltipla, usa o vértice ativo. Em %, até 50% da menor dimensão. Os lados limitam o raio.</p><label>Recorte dos cantos <output
+                    id="cutValue"></output><input id="cut" type="range" min="0" max="80"></label>
+            <p>Recorte opcional. Comece com 0 px e ajuste quando quiser.</p><label>Contorno<select id="contour"></select></label><label>Vértice selecionado<select id="point"></select></label>
+            <div class="two"><label>X<input id="px" type="number"></label><label>Y<input id="py" type="number"></label>
+            </div><button id="remove" class="wide">− Remover vértice</button><label class="section sub">SAÍDA
+                SVG</label>
+            <p>800 × 500 px · Fundo transparente</p><button id="code" class="wide">〈/〉 Ver código SVG</button>
+        </aside>
+    </main>
+    <section id="dialog" class="code-panel" hidden>
+        <h2>Editor de código <button id="close" title="Fechar editor de código">✕</button></h2>
+        <div class="editor-options"><select id="editorTheme" aria-label="Tema do editor"><option value="vs-dark">VS Dark</option><option value="vs">VS Light</option><option value="quiet-paper">Papel suave</option><option value="orange-night">Laranja noturno</option><option value="hc-black">Alto contraste</option></select><label><input id="autoRepair" type="checkbox" checked> Correções automáticas</label></div>
+        <div class="editor-tabs"><button data-code-tab="svg" class="active">design.svg</button><button data-code-tab="html">index.html</button><button data-code-tab="css">style.css</button><button data-code-tab="preview">Prévia</button></div>
+        <div id="monacoHost" aria-label="Editor Monaco"></div>
+        <iframe id="htmlPreview" title="Prévia HTML e CSS" sandbox="allow-same-origin" hidden></iframe>
+        <textarea id="source" spellcheck="false" aria-label="Código SVG editável" hidden></textarea>
+        <div id="editorProblems" role="status"></div>
+        <div id="codeStatus" role="status">Código sincronizado.</div>
+        <div class="code-actions"><button id="format">Formatar</button><button id="repair">Corrigir</button><button id="copy">Copiar</button><button id="exportWeb" class="primary">Exportar HTML</button></div>
+    </section>
+    <dialog id="gridDialog">
+        <h2>Ajustes da grade <button id="closeGrid">✕</button></h2>
+        <label>Tipo de grade<select id="gridType"><option value="lines">Linhas</option><option value="dots">Pontos</option></select></label>
+        <label>Tamanho da célula (px)<input id="cellSize" type="number" min="1" max="200" step="1" value="24"></label>
+        <div class="two"><label>Passo horizontal (px)<input id="stepX" type="number" min="0.1" max="200" step="0.1" value="1"></label><label>Passo vertical (px)<input id="stepY" type="number" min="0.1" max="200" step="0.1" value="1"></label></div>
+        <div class="two"><label>Origem X (px)<input id="originX" type="number" min="-1000" max="1000" value="0"></label><label>Origem Y (px)<input id="originY" type="number" min="-1000" max="1000" value="0"></label></div>
+        <p>O ímã usa os passos definidos, independentemente do tamanho visual da célula. As setas movem o ponto selecionado por um passo; Shift multiplica por 10.</p>
+        <div class="code-actions"><button id="stepCell">Passo = célula</button><button id="stepHalf">Passo = meia célula</button><button id="stepPixel">Passo = 1 px</button></div>
+    </dialog>
+    <div id="toast" role="status"></div><input type="file" id="file" accept=".json" hidden>
+    <script src="vendor/polygon-clipping.js"></script>
+    <script src="geometry.js"></script>
+    <script src="app.js"></script>
+    <script src="vendor/ide/workbench.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,42 @@
+{
+  "name": "svg-editor-generator",
+  "version": "1.6.1",
+  "description": "Editor visual de SVG para Windows",
+  "main": "desktop.cjs",
+  "author": "SVG Editor Generator",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win portable",
+    "test": "node --test tests/geometry.cjs tests/editor.cjs",
+    "build:editor": "node build-editor.cjs",
+    "predist": "node build-editor.cjs"
+  },
+  "devDependencies": {
+    "electron": "44.7.0",
+    "electron-builder": "26.15.3",
+    "esbuild": "^0.25.12",
+    "monaco-editor": "^0.55.1",
+    "polygon-clipping": "^0.15.7"
+  },
+  "build": {
+    "appId": "dev.wkmcode.scifisvglab",
+    "productName": "SVG Editor Generator",
+    "files": [
+      "index.html",
+      "style.css",
+      "app.js",
+      "geometry.js",
+      "desktop.cjs",
+      "vendor/**"
+    ],
+    "win": {
+      "target": "portable"
+    },
+    "directories": {
+      "output": "release/1.6.1"
+    },
+    "electronDist": "node_modules/electron/dist",
+    "compression": "store"
+  }
+}
