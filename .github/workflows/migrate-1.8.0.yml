@@ -41,6 +41,8 @@ jobs:
           cache: npm
       - uses: dtolnay/rust-toolchain@stable
       - run: npm ci
+      - name: Normalize formatter config
+        run: npx prettier --write .prettierrc.json
       - run: npm run format:check
       - run: npm test
       - run: npm run test:desktop
@@ -56,7 +58,7 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git rm --ignore-unmatch -- .migration/source-1.8.0.patch.gz.b64
-          git add src-tauri/Cargo.lock
+          git add .prettierrc.json src-tauri/Cargo.lock
           git commit -m 'Release 1.8.0: TypeScript architecture, Tauri and tested web editor'
           if ($LASTEXITCODE -ne 0) { throw 'Source commit failed' }
           git push origin HEAD:main
