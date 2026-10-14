@@ -8,6 +8,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: write
+concurrency:
+  group: publish-typescript-1.8.0
+  cancel-in-progress: true
 jobs:
   windows:
     runs-on: windows-latest
@@ -27,6 +30,7 @@ jobs:
           $output.Dispose()
           $gzip.Dispose()
           if ((Get-FileHash $patchPath -Algorithm SHA256).Hash.ToLower() -ne 'cec23106379051e07827e8903fc47b62ea549b4624157809c26b1325c94192f4') { throw 'Migration checksum mismatch' }
+          git config core.autocrlf false
           git apply --index --binary $patchPath
           if ($LASTEXITCODE -ne 0) { throw 'Migration patch failed' }
           git rm -r --ignore-unmatch -- app.js build-editor.cjs desktop.cjs editor-repair.js editor-workbench.js geometry.js index.html style.css tests/desktop.cjs vendor
