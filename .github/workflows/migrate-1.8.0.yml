@@ -40,6 +40,10 @@ jobs:
           node-version: 22
           cache: npm
       - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+          cache-on-failure: true
       - run: npm ci
       - name: Normalize formatter config
         run: npx prettier --write .prettierrc.json
@@ -51,7 +55,19 @@ jobs:
       - run: npm run test:ui
       - run: cargo test --manifest-path src-tauri/Cargo.toml
       - run: npm run dist
+      - name: Enable WebView2 test connection on the Windows runner
+        shell: pwsh
+        run: |
+          $key = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge\WebView2\AdditionalBrowserArguments'
+          New-Item -Path $key -Force | Out-Null
+          New-ItemProperty -Path $key -Name '*' -Value '--remote-debugging-port=9222' -PropertyType String -Force | Out-Null
       - run: npm run test:windows
+      - name: Remove WebView2 test policy
+        if: always()
+        shell: pwsh
+        run: |
+          $key = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge\WebView2\AdditionalBrowserArguments'
+          Remove-ItemProperty -Path $key -Name '*' -ErrorAction SilentlyContinue
       - name: Publish validated source and version tag
         shell: pwsh
         run: |
