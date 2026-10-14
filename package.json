@@ -1,42 +1,34 @@
 {
   "name": "svg-editor-generator",
-  "version": "1.6.1",
+  "version": "1.8.0",
   "description": "Editor visual de SVG para Windows",
-  "main": "desktop.cjs",
   "author": "SVG Editor Generator",
   "license": "MIT",
   "scripts": {
-    "start": "electron .",
-    "dist": "electron-builder --win portable",
-    "test": "node --test tests/geometry.cjs tests/editor.cjs",
-    "build:editor": "node build-editor.cjs",
-    "predist": "node build-editor.cjs"
+    "start": "tauri dev",
+    "tauri": "tauri",
+    "dist": "tauri build --bundles nsis",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write src public scripts tests docs *.md *.json .github/workflows/*.yml",
+    "format:check": "prettier --check src public scripts tests docs *.md *.json .github/workflows/*.yml",
+    "build:web": "npm run typecheck && node scripts/build.cjs",
+    "build:editor": "npm run build:web",
+    "build:tests": "node scripts/build-tests.cjs",
+    "test": "npm run typecheck && npm run build:tests && node --test tests/geometry.cjs tests/editor.cjs tests/storage.cjs tests/interaction.cjs",
+    "test:desktop": "npm run build:tests && node --test tests/desktop-bridge.cjs",
+    "test:ui": "node scripts/test-ui.cjs",
+    "dev:web": "npm run build:web && node scripts/serve.cjs",
+    "test:windows": "node scripts/test-windows.cjs"
   },
   "devDependencies": {
-    "electron": "44.7.0",
-    "electron-builder": "26.15.3",
+    "@playwright/test": "^1.61.1",
+    "@tauri-apps/cli": "^2.12.2",
+    "@types/node": "^22.19.0",
     "esbuild": "^0.25.12",
+    "happy-dom": "^20.8.8",
     "monaco-editor": "^0.55.1",
-    "polygon-clipping": "^0.15.7"
-  },
-  "build": {
-    "appId": "dev.wkmcode.scifisvglab",
-    "productName": "SVG Editor Generator",
-    "files": [
-      "index.html",
-      "style.css",
-      "app.js",
-      "geometry.js",
-      "desktop.cjs",
-      "vendor/**"
-    ],
-    "win": {
-      "target": "portable"
-    },
-    "directories": {
-      "output": "release/1.6.1"
-    },
-    "electronDist": "node_modules/electron/dist",
-    "compression": "store"
+    "polygon-clipping": "^0.15.7",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.3"
   }
 }
