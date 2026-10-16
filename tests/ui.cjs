@@ -77,7 +77,7 @@ const assert = require('node:assert/strict'),
     await page.click('#closeGrid');
     assert.equal(await page.locator('#dotPattern').getAttribute('width'), '32');
     assert.equal(await page.locator('#gridRect').getAttribute('fill'), 'url(#dotPattern)');
-    await dragPoint(0, 205, 146);
+    await dragPoint(0, 205, 147);
     assert.equal(await firstX(), 208);
     assert.equal(await page.locator('.handle').first().getAttribute('cy'), '148');
     await page.keyboard.press('ArrowRight');

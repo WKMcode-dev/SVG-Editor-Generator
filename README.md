@@ -1,4 +1,4 @@
-# SVG Editor Generator 1.8.0
+# SVG Editor Generator 1.9.0
 
 Editor visual de SVG em **TypeScript + Tauri 2/Rust**, com pontos arrastáveis, cantos arredondados, operações booleanas e edição SVG/HTML/CSS no Monaco.
 
@@ -12,6 +12,18 @@ Editor visual de SVG em **TypeScript + Tauri 2/Rust**, com pontos arrastáveis, 
 A versão web funciona no navegador. No Windows x64, baixe o instalador NSIS da release. O aplicativo usa WebView2: caso o runtime não esteja instalado, a instalação pode precisar de internet. Depois disso, o editor desktop funciona offline. O instalador não tem assinatura digital e o Windows pode apresentar um aviso.
 
 As formas, a grade, o fundo, o HTML/CSS e as preferências do Monaco têm salvamento automático local. Não é necessário apertar Ctrl+S para isso. Cada navegador/origem e o aplicativo instalado têm perfis independentes. Não apague os dados do navegador/perfil se quiser preservar o salvamento automático. Salvar projeto gera um JSON para transportar ou fazer backup do projeto editável.
+
+## Espaço de trabalho
+
+Interface organizada em camadas à esquerda, ferramentas no topo, canvas central e inspetor à direita. As seções Aparência e Editar pontos e cantos podem ser recolhidas. A organização é inspirada em editores de interface como Figma, com a identidade visual do SVG Generator.
+
+- Busque camadas pelo nome. Duplo clique em uma camada seleciona seu nome para edição no inspetor.
+- Subir e Descer alteram a ordem de empilhamento; também funcionam com várias formas selecionadas.
+- Posição X/Y move a forma inteira sem deformar seus pontos.
+- Os seis alinhamentos usam a prancheta quando há uma forma; com várias, usam os limites da seleção.
+- Enquadrar mostra a prancheta; Seleção aproxima as formas selecionadas.
+- As setas movem a forma inteira. Com pontos ou segmentos explicitamente selecionados, movem apenas esses pontos.
+- O botão ? abre a lista de atalhos. Alterações de geometria e camadas têm desfazer/refazer e salvamento automático.
 
 ## Ferramentas
 
@@ -60,11 +72,12 @@ Para os testes de navegador, execute npm run build:web, npm run build:tests e np
 
 ## Publicação
 
-O workflow de validação confere tipos, testes e build web. O workflow Windows executa os testes Rust, gera o instalador e abre o executável no WebView2 para verificar a interface e o Monaco. GitHub Pages publica dist ao atualizar main. Uma tag correspondente à versão, como v1.8.0, inicia a release: os arquivos só são publicados depois de passar pelos testes e pela compilação Windows.
+O workflow de validação confere tipos, testes e build web. O workflow Windows executa os testes Rust, gera o instalador e abre o executável no WebView2 para verificar a interface e o Monaco. GitHub Pages publica dist ao atualizar main. Uma tag correspondente à versão, como v1.9.0, ou uma nova nota docs/release-v\*.md em main inicia a release: os arquivos só são publicados depois de passar pelos testes e pela compilação Windows.
 
 ## Atalhos
 
 - Ctrl+Z: desfazer; Ctrl+Y/Ctrl+Shift+Z: refazer; Ctrl+D: duplicar; Delete: excluir; Ctrl+S: exportar projeto JSON.
+- Ctrl+A: selecionar todas; R: inserir retângulo; Shift+1/2: enquadrar prancheta/seleção; Ctrl+]/[: subir/descer camada; ?: atalhos.
 - V: selecionar; L: linhas; H: câmera; M: ímã; Esc: cancelar/deselecionar.
 - Alt+Shift+U/S/I/E/F: operações booleanas.
 

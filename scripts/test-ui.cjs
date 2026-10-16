@@ -13,6 +13,7 @@ server.listen(0, '127.0.0.1', async () => {
     'corners-selection',
     'ide',
     'point-priority',
+    'workspace',
   ]) {
     const code = await new Promise((resolve) => {
       const child = spawn(process.execPath, [`tests/${script}.cjs`], {

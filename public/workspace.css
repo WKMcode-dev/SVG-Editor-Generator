@@ -1,0 +1,303 @@
+/* Workspace layout: compact chrome, persistent layers and contextual inspector. */
+:root {
+  --border: #353638;
+  --orange: #e99b52;
+}
+header {
+  height: 56px;
+  padding: 0 18px;
+  gap: 24px;
+  background: #202122;
+}
+.brand {
+  font-size: 14px;
+  letter-spacing: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.brand-symbol {
+  font-size: 25px;
+  color: var(--orange);
+  margin-right: 5px;
+}
+.local {
+  font:
+    11px 'Segoe UI',
+    sans-serif;
+  color: #a7b5a1;
+}
+header button {
+  font-size: 12px;
+  padding: 7px 12px;
+}
+main,
+.code-open main {
+  height: calc(100dvh - 56px);
+  grid-template-columns: 224px minmax(260px, 1fr) 278px;
+  grid-template-rows: 48px minmax(0, 1fr);
+}
+main > .toolbar {
+  grid-column: 1/-1;
+  grid-row: 1;
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: space-between;
+  height: 48px;
+  min-height: 48px;
+  padding: 0 12px;
+  background: #242526;
+  overflow: visible;
+  z-index: 12;
+}
+.toolbar > div {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: nowrap;
+}
+.toolbar button {
+  white-space: nowrap;
+  padding: 7px 8px;
+  font-size: 11px;
+  border-color: transparent;
+  background: transparent;
+}
+.toolbar button.active {
+  background: #423326;
+  border-color: #74502d;
+}
+.toolbar label {
+  white-space: nowrap;
+  font-size: 11px;
+}
+main > aside,
+main > .workspace,
+main > .code-panel {
+  grid-row: 2;
+  min-height: 0;
+}
+.layers-panel {
+  padding: 0;
+  background: #222324;
+}
+.panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.panel-heading h2 {
+  margin: 0;
+  font-weight: 600;
+  font-size: 13px;
+}
+.panel-heading span {
+  color: #8e9197;
+  font-size: 10px;
+}
+.search-label {
+  padding: 12px 14px 8px;
+  font-size: 10px;
+}
+.search-label input {
+  margin-top: 6px;
+}
+.artboard-row {
+  padding: 14px 16px;
+  color: #b8bbc1;
+  font-size: 11px;
+}
+#layers {
+  flex: 1;
+  min-height: 110px;
+  overflow: auto;
+  padding: 0 8px;
+}
+.layer {
+  margin: 2px 0;
+  padding: 10px;
+  background: transparent;
+  border-color: transparent;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.layer.active {
+  border-color: #715032;
+  background: #3a3026;
+}
+.layer-order,
+.layer-actions {
+  display: flex;
+  gap: 6px;
+  padding: 8px 12px;
+}
+.layer-order button,
+.layer-actions button {
+  flex: 1;
+  padding: 7px 4px;
+  font-size: 10px;
+  margin: 0;
+}
+.library-heading {
+  border-top: 1px solid var(--border);
+  padding: 16px 16px 8px;
+  font-weight: 600;
+  font-size: 11px;
+}
+.presets {
+  margin: 0;
+  padding: 4px 12px 12px;
+  gap: 6px;
+}
+.presets button {
+  font-size: 23px;
+  padding: 8px 4px;
+  background: #292a2b;
+}
+.presets small {
+  font-size: 10px;
+  margin-top: 4px;
+}
+.sidebar-help {
+  padding: 14px 16px;
+  border-top: 1px solid var(--border);
+}
+.sidebar-help b {
+  font-size: 11px;
+  color: #bbb;
+}
+.sidebar-help p {
+  font-size: 10px;
+  margin: 7px 0;
+}
+.version {
+  font-size: 9px;
+}
+.workspace {
+  background: #171819;
+}
+.stage {
+  min-height: 0;
+  flex: 1;
+}
+.canvas-label {
+  font:
+    11px 'Segoe UI',
+    sans-serif;
+  letter-spacing: 0;
+  color: #a4a5a8;
+}
+.canvas-label span {
+  margin-left: 10px;
+  opacity: 0.6;
+}
+footer {
+  font-size: 9px;
+  padding: 8px 12px;
+  min-height: 32px;
+  gap: 8px;
+}
+.right {
+  padding: 18px 16px;
+  background: #222324;
+}
+.right h2 {
+  margin: 12px 0 18px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.right label {
+  font-size: 10px;
+}
+.right input:not([type='checkbox']):not([type='color']):not([type='range']),
+.right select,
+#layerFilter {
+  background: #2b2c2d;
+  border-color: #3c3d40;
+  border-radius: 5px;
+  min-height: 32px;
+}
+.right p {
+  font-size: 10px;
+  line-height: 1.6;
+}
+.right details {
+  border-top: 1px solid var(--border);
+  margin-top: 14px;
+  padding-top: 14px;
+}
+.right summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 12px;
+  margin-bottom: 14px;
+}
+.alignment {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+  margin: 8px 0;
+}
+.alignment button {
+  padding: 6px 0;
+  font-size: 18px;
+  background: transparent;
+}
+.align-tip {
+  margin: 0 0 14px;
+}
+.code-open main {
+  grid-template-columns: 224px minmax(260px, 1fr) 400px;
+}
+#shortcutsDialog {
+  width: min(540px, 90vw);
+  padding: 24px;
+  background: #242526;
+  color: #ddd;
+  border: 1px solid #555;
+  border-radius: 12px;
+}
+#shortcutsDialog h2 {
+  margin: 0 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.shortcut-list {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  font-size: 12px;
+}
+.shortcut-list dt {
+  color: #aaa;
+}
+.shortcut-list dd {
+  margin: 0;
+  color: #e99b52;
+}
+button:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--orange);
+  outline-offset: 2px;
+}
+@media (max-width: 1200px) {
+  main,
+  .code-open main {
+    grid-template-columns: 190px minmax(260px, 1fr) 250px;
+  }
+  .code-open main {
+    grid-template-columns: 190px minmax(260px, 1fr) 340px;
+  }
+  .toolbar button {
+    padding: 6px;
+    font-size: 10px;
+  }
+  header .local {
+    display: none;
+  }
+}
