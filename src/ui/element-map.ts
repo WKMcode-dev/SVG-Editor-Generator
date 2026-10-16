@@ -1,4 +1,14 @@
 export interface UiElementMap {
+  shapeX: HTMLInputElement;
+  shapeY: HTMLInputElement;
+  layerFilter: HTMLInputElement;
+  layerUp: HTMLButtonElement;
+  layerDown: HTMLButtonElement;
+  fitSelection: HTMLButtonElement;
+  shortcuts: HTMLButtonElement;
+  closeShortcuts: HTMLButtonElement;
+  shortcutsDialog: HTMLDialogElement;
+  saveStatus: HTMLElement;
   open: HTMLButtonElement;
   save: HTMLButtonElement;
   export: HTMLButtonElement;
