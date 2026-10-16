@@ -213,3 +213,72 @@ test('layout render preserves a focused pending field until its change is commit
     await e.close();
   }
 });
+
+test('position and alignment preserve geometry and support undo plus autosave', async () => {
+  const e = await editor();
+  try {
+    const initial = e.points();
+    e.$('shapeX').value = '80';
+    e.$('shapeX').dispatchEvent(new e.w.Event('change'));
+    assert.equal(Math.min(...e.points().map((p) => p[0])), 80);
+    assert.equal(e.$('shapeWidth').value, '400');
+    e.w.document.querySelector('[data-align="right"]').click();
+    assert.equal(Math.max(...e.points().map((p) => p[0])), 800);
+    e.$('undo').click();
+    assert.equal(Math.min(...e.points().map((p) => p[0])), 80);
+    e.$('undo').click();
+    assert.deepEqual(e.points(), initial);
+    assert.deepEqual(JSON.parse(e.snapshot()).shapes[0].points, initial);
+  } finally {
+    await e.close();
+  }
+});
+test('layer order, multi-selection alignment, filtering and history work together', async () => {
+  const e = await editor();
+  try {
+    const first = JSON.parse(e.snapshot()).shapes[0].id;
+    e.w.document.querySelector('[data-type="triangle"]').click();
+    const second = JSON.parse(e.snapshot()).shapes[1].id;
+    e.$('layerDown').click();
+    assert.deepEqual(
+      JSON.parse(e.snapshot()).shapes.map((s) => s.id),
+      [second, first],
+    );
+    e.$('undo').click();
+    assert.deepEqual(
+      JSON.parse(e.snapshot()).shapes.map((s) => s.id),
+      [first, second],
+    );
+    e.w.document.body.dispatchEvent(
+      new e.w.KeyboardEvent('keydown', { key: 'a', ctrlKey: true, bubbles: true }),
+    );
+    e.w.document.querySelector('[data-align="left"]').click();
+    const boxes = JSON.parse(e.snapshot()).shapes.map(G.bounds);
+    assert.equal(boxes[0].x, boxes[1].x);
+    e.$('layerFilter').value = 'Triângulo';
+    e.$('layerFilter').dispatchEvent(new e.w.Event('input'));
+    assert.equal(e.w.document.querySelectorAll('.layer').length, 1);
+    assert.equal(JSON.parse(e.snapshot()).shapes.length, 2);
+  } finally {
+    await e.close();
+  }
+});
+
+test('arrow keys move the selected layer without deforming a single vertex', async () => {
+  const e = await editor();
+  try {
+    const initial = e.points();
+    e.w.document.querySelector('.layer').click();
+    e.w.document.body.dispatchEvent(
+      new e.w.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }),
+    );
+    assert.deepEqual(
+      e.points(),
+      initial.map(([x, y]) => [x + 1, y]),
+    );
+    e.$('undo').click();
+    assert.deepEqual(e.points(), initial);
+  } finally {
+    await e.close();
+  }
+});
