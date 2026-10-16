@@ -242,6 +242,8 @@ export function createRenderer(ctx: RenderContext) {
       'point',
       'px',
       'py',
+      'shapeX',
+      'shapeY',
       'shapeWidth',
       'shapeHeight',
       'lockRatio',
@@ -255,6 +257,8 @@ export function createRenderer(ctx: RenderContext) {
       ctx.vertex = Math.max(0, Math.min(ctx.vertex, points.length - 1));
       $('title').textContent = s.name;
       const size = G.bounds(s);
+      setFormValue($('shapeX'), String(size.x));
+      setFormValue($('shapeY'), String(size.y));
       setFormValue($('shapeWidth'), String(size.width));
       setFormValue($('shapeHeight'), String(size.height));
       const corner = s.cornerRadii?.[`${ctx.activeRing.p}:${ctx.activeRing.r}:${ctx.vertex}`];
@@ -299,6 +303,8 @@ export function createRenderer(ctx: RenderContext) {
           'opacity',
           'px',
           'py',
+          'shapeX',
+          'shapeY',
           'shapeWidth',
           'shapeHeight',
           'radius',
@@ -315,16 +321,29 @@ export function createRenderer(ctx: RenderContext) {
     $('emptyCanvas').hidden = ctx.shapes.length > 0;
     drawPartControls();
     $('layers').replaceChildren(
-      ...[...ctx.shapes].reverse().map((item) => {
-        const b = document.createElement('button');
-        b.className = 'layer' + (ctx.selectedIds.has(item.id) ? ' active' : '');
-        b.textContent = '◇  ' + item.name;
-        b.onclick = (e) => {
-          ctx.selectShape(item.id, e.shiftKey || e.ctrlKey || e.metaKey);
-          render();
-        };
-        return b;
-      }),
+      ...[...ctx.shapes]
+        .reverse()
+        .filter((item) =>
+          item.name.toLocaleLowerCase().includes($('layerFilter').value.toLocaleLowerCase().trim()),
+        )
+        .map((item) => {
+          const b = document.createElement('button');
+          b.className = 'layer' + (ctx.selectedIds.has(item.id) ? ' active' : '');
+          b.textContent = '◇  ' + item.name;
+          b.title = item.name;
+          b.setAttribute('aria-pressed', String(ctx.selectedIds.has(item.id)));
+          b.ondblclick = () => {
+            ctx.selectShape(item.id);
+            render();
+            $('name').focus();
+            $('name').select();
+          };
+          b.onclick = (e) => {
+            ctx.selectShape(item.id, e.shiftKey || e.ctrlKey || e.metaKey);
+            render();
+          };
+          return b;
+        }),
     );
     if (!ctx.shapes.length) {
       const p = document.createElement('p');
@@ -332,6 +351,12 @@ export function createRenderer(ctx: RenderContext) {
       p.className = 'empty-layers';
       $('layers').append(p);
     }
+    (['layerUp', 'layerDown', 'fitSelection'] as const).forEach(
+      (id) => ($(id).disabled = !ctx.selectedIds.size),
+    );
+    document
+      .querySelectorAll<HTMLButtonElement>('[data-align]')
+      .forEach((b) => (b.disabled = !ctx.selectedIds.size));
     $('undo').disabled = !ctx.history.length;
     $('redo').disabled = !ctx.future.length;
     (['duplicate', 'delete'] as const).forEach((id) => ($(id).disabled = !s));
