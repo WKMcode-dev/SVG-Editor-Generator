@@ -1,3 +1,10 @@
+import {
+  alignSelection,
+  translateSelection,
+  reorderSelection,
+  selectionBounds,
+  type Alignment,
+} from './layout-commands';
 import { createRenderer, el } from '../ui/editor-renderer';
 import { parseCode as parseSvg } from './svg-parser';
 import * as G from '../domain/geometry';
@@ -309,7 +316,9 @@ function clearSelection() {
 function persist() {
   try {
     storage.save(project());
+    $('saveStatus').textContent = 'Salvo neste dispositivo';
   } catch {
+    $('saveStatus').textContent = 'Salvamento local indisponível';
     toast('Armazenamento local indisponível. Salve o projeto.');
   }
 }
@@ -534,6 +543,48 @@ function tool(v: Tool) {
   $('hand').classList.toggle('active', v === 'hand');
   $('canvas').style.cursor = v === 'hand' ? 'grab' : 'default';
 }
+const selectedShapes = () => shapes.filter((s) => selectedIds.has(s.id));
+(['shapeX', 'shapeY'] as const).forEach((id, axis) => {
+  $(id).onchange = () => {
+    const value = Number($(id).value),
+      shape = current();
+    if (!shape || selectedIds.size !== 1 || !Number.isFinite(value) || Math.abs(value) > 100000)
+      return render();
+    change(() => {
+      const box = G.bounds(shape);
+      translateSelection([shape], axis === 0 ? value - box.x : 0, axis === 1 ? value - box.y : 0);
+      clearParts();
+    });
+  };
+});
+document.querySelectorAll<HTMLButtonElement>('[data-align]').forEach((button) => {
+  button.onclick = () =>
+    change(() => {
+      alignSelection(selectedShapes(), button.dataset.align as Alignment);
+      clearParts();
+    });
+});
+$('layerUp').onclick = () => change(() => reorderSelection(shapes, selectedIds, 1));
+$('layerDown').onclick = () => change(() => reorderSelection(shapes, selectedIds, -1));
+$('layerFilter').oninput = () => render();
+$('fitSelection').onclick = () => {
+  const box = selectionBounds(selectedShapes());
+  if (!box) return;
+  const viewport = $('canvas').getBoundingClientRect();
+  view.z = Math.max(
+    0.15,
+    Math.min(
+      4,
+      (viewport.width - 80) / Math.max(1, box.width),
+      (viewport.height - 100) / Math.max(1, box.height),
+    ),
+  );
+  view.x = (viewport.width - box.width * view.z) / 2 - box.x * view.z;
+  view.y = (viewport.height - box.height * view.z) / 2 - box.y * view.z;
+  render();
+};
+$('shortcuts').onclick = () => $('shortcutsDialog').showModal();
+$('closeShortcuts').onclick = () => $('shortcutsDialog').close();
 $('select').onclick = () => tool('select');
 $('hand').onclick = () => tool('hand');
 $('lineSelect').onclick = () => tool('lines');
@@ -1175,9 +1226,39 @@ document.addEventListener('keydown', (e) => {
   if (
     ['INPUT', 'TEXTAREA', 'SELECT'].includes(targetNode.tagName) ||
     targetNode.closest('.monaco-editor') ||
-    $('gridDialog').open
+    $('gridDialog').open ||
+    $('shortcutsDialog').open
   )
     return;
+  const command = e.ctrlKey || e.metaKey;
+  if (command && e.key.toLowerCase() === 'a') {
+    e.preventDefault();
+    clearParts();
+    selectedIds = new Set(shapes.map((s) => s.id));
+    selected = shapes.at(-1)?.id || null;
+    render();
+    return;
+  }
+  if (command && ['[', ']'].includes(e.key)) {
+    e.preventDefault();
+    (e.key === ']' ? $('layerUp') : $('layerDown')).click();
+    return;
+  }
+  if (e.shiftKey && ['Digit1', 'Digit2'].includes(e.code) && !command && !e.altKey) {
+    e.preventDefault();
+    (e.code === 'Digit1' ? $('fit') : $('fitSelection')).click();
+    return;
+  }
+  if (!command && !e.altKey && e.key === '?') {
+    e.preventDefault();
+    $('shortcuts').click();
+    return;
+  }
+  if (!command && !e.altKey && e.key.toLowerCase() === 'r') {
+    e.preventDefault();
+    document.querySelector<HTMLButtonElement>('[data-type="rectangle"]')?.click();
+    return;
+  }
   if (e.code === 'Space') {
     e.preventDefault();
     space = true;
@@ -1226,16 +1307,9 @@ document.addEventListener('keydown', (e) => {
         moveParts(allSelectedPoints(), delta as Point);
         return;
       }
-      if (selectedIds.size > 1) {
-        shapes
-          .filter((s) => selectedIds.has(s.id))
-          .forEach((s) =>
-            G.mapShape(s, (p) => p.map((n, i) => G.round(n + (i === axis ? step : 0))) as Point),
-          );
-        return;
-      }
-      currentPoints()[vertex][axis] = G.round(currentPoints()[vertex][axis] + step);
-      dirty(current()!);
+      const delta: Point = [0, 0];
+      delta[axis] = step;
+      translateSelection(selectedShapes(), delta[0], delta[1]);
     });
   }
 });
