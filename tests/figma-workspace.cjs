@@ -104,7 +104,7 @@ const assert = require('node:assert/strict');
       clientX: box.x + 400,
       clientY: box.y + 350,
     });
-    assert.notEqual(await z(), afterPinch, 'legacy touchpad wheel zooms without Ctrl');
+    assert.equal(await z(), afterPinch, 'vertical touchpad scroll must not zoom');
     const beforePan = await z();
     const beforeCamera = await page.locator('#camera').getAttribute('transform');
     await page.locator('#canvas').dispatchEvent('wheel', {
@@ -115,6 +115,17 @@ const assert = require('node:assert/strict');
     });
     assert.equal(await z(), beforePan, 'Shift-scroll pans without zoom');
     assert.notEqual(await page.locator('#camera').getAttribute('transform'), beforeCamera);
+    for (const [dx, dy] of [
+      [0, -90],
+      [0, 90],
+      [55, 40],
+      [-60, 0],
+    ]) {
+      const camera = await page.locator('#camera').getAttribute('transform');
+      await page.locator('#canvas').dispatchEvent('wheel', { deltaX: dx, deltaY: dy });
+      assert.equal(await z(), beforePan, 'scroll in any direction preserves zoom');
+      assert.notEqual(await page.locator('#camera').getAttribute('transform'), camera);
+    }
     const zoomed = await z();
     await page.setViewportSize({ width: 1280, height: 840 });
     await page.waitForTimeout(60);

@@ -105,4 +105,4 @@ O botão **⚙ Grade** no rodapé ajusta célula base, estilo, origem e passos d
 
 ### Touchpad
 
-Use pinça para zoom. Em drivers que não enviam o gesto padrão, a rolagem vertical com dois dedos também dá zoom, mantendo o ponto sob o cursor. Shift+rolagem, a ferramenta Mão ou rolagem horizontal movem o canvas. Painéis laterais mantêm sua rolagem normal.
+Use pinça ou Ctrl/Command+rolagem para zoom. Deslizar dois dedos em qualquer direção move o canvas sem alterar o zoom. Painéis laterais mantêm sua rolagem normal.

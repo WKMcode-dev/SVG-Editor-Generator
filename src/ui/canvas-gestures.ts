@@ -2,7 +2,6 @@ interface CameraGestures {
   zoom(factor: number, x: number, y: number): void;
   pan(dx: number, dy: number): void;
   cancel(): void;
-  isPanning?(): boolean;
 }
 /** Handles precision pinch, legacy touchpad scrolling, touch pointers and WebKit gestures. */
 export function installCanvasGestures(canvas: SVGSVGElement, actions: CameraGestures): void {
@@ -15,12 +14,8 @@ export function installCanvasGestures(canvas: SVGSVGElement, actions: CameraGest
       if (nativeGestureActive) return;
       const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? canvas.clientHeight : 1;
       const pinch = event.ctrlKey || event.metaKey;
-      // Some laptop drivers expose only unmodified wheel events. Vertical scrolling
-      // zooms too; Shift, the hand tool and horizontal scrolling remain available for pan.
-      if (
-        !pinch &&
-        (event.shiftKey || actions.isPanning?.() || Math.abs(event.deltaX) > Math.abs(event.deltaY))
-      ) {
+      // Scroll translates the canvas on both axes. Only an explicit pinch modifier zooms.
+      if (!pinch) {
         actions.pan(-event.deltaX * unit, -event.deltaY * unit);
         return;
       }
@@ -28,11 +23,7 @@ export function installCanvasGestures(canvas: SVGSVGElement, actions: CameraGest
       actions.cancel();
       const r = canvas.getBoundingClientRect();
       const delta = Math.max(-240, Math.min(240, event.deltaY * unit));
-      actions.zoom(
-        Math.exp(-delta * (pinch ? 0.01 : 0.003)),
-        event.clientX - r.left,
-        event.clientY - r.top,
-      );
+      actions.zoom(Math.exp(-delta * 0.01), event.clientX - r.left, event.clientY - r.top);
     },
     { passive: false, capture: true },
   );
