@@ -29,6 +29,8 @@ const fixture = (name, x, y, w, h) => ({
       errors = [];
     page.on('pageerror', (e) => e.message !== 'Canceled' && errors.push(e.message));
     await page.goto(require('./browser-helper.cjs').editorURL);
+    await page.waitForSelector('.shape');
+    await page.click('#editPoints');
     await page.waitForSelector('.handle');
     const screen = async (x, y) =>
       page.evaluate(
@@ -78,12 +80,14 @@ const fixture = (name, x, y, w, h) => ({
       });
       await page.waitForFunction(
         (expected) =>
-          [...document.querySelectorAll('.layer')].map((b) => b.textContent).join('|') === expected,
+          [...document.querySelectorAll('.layer-name')].map((b) => b.textContent).join('|') ===
+          expected,
         shapes
-          .map((s) => '◇  ' + s.name)
+          .map((s) => s.name)
           .reverse()
           .join('|'),
       );
+      await page.click('#editPoints');
     };
     assert.equal(await page.locator('#shapeWidth').inputValue(), '400');
     assert.equal(await page.locator('#shapeHeight').inputValue(), '220');
@@ -105,6 +109,7 @@ const fixture = (name, x, y, w, h) => ({
       [200, 360],
     ]);
     await page.click('.layer');
+    await page.click('#editPoints');
     await click(400, 140);
     await click(600, 250, ['Shift']);
     assert.equal(await page.locator('.selected-edge').count(), 2);
@@ -117,6 +122,7 @@ const fixture = (name, x, y, w, h) => ({
     ]);
     await page.click('#undo');
     await page.click('.layer');
+    await page.click('#editPoints');
     await page.fill('#shapeWidth', '500');
     await page.locator('#shapeWidth').press('Tab');
     await page.fill('#shapeHeight', '300');
@@ -132,12 +138,14 @@ const fixture = (name, x, y, w, h) => ({
     await page.locator('#shapeWidth').press('Tab');
     assert.equal(await page.locator('#shapeHeight').inputValue(), '150');
     await page.click('#background');
-    assert.ok(await page.locator('.stage').evaluate((e) => e.classList.contains('map-light')));
+    assert.ok(await page.locator('.stage').evaluate((e) => !e.classList.contains('map-light')));
     await page.reload();
+    await page.waitForSelector('.shape');
+    await page.click('#editPoints');
     await page.waitForSelector('.handle');
     assert.equal(await page.locator('#shapeWidth').inputValue(), '250');
     assert.equal(await page.locator('#shapeHeight').inputValue(), '150');
-    assert.ok(await page.locator('.stage').evaluate((e) => e.classList.contains('map-light')));
+    assert.ok(await page.locator('.stage').evaluate((e) => !e.classList.contains('map-light')));
     const a = fixture('A', 200, 140, 100, 100),
       b = fixture('B', 250, 140, 100, 100);
     await load([a, b]);
@@ -145,6 +153,8 @@ const fixture = (name, x, y, w, h) => ({
     await page.fill('#shapeWidth', '140');
     await page.locator('#shapeWidth').press('Tab');
     await page.reload();
+    await page.waitForSelector('.shape');
+    await page.click('#editPoints');
     await page.waitForSelector('.handle');
     assert.equal(await page.locator('#title').innerText(), 'B');
     assert.equal(await page.locator('#shapeWidth').inputValue(), '140');
@@ -182,6 +192,7 @@ const fixture = (name, x, y, w, h) => ({
     await click(275, 215);
     assert.equal(await page.locator('.handle').count(), 0);
     await page.click('.layer');
+    await page.click('#editPoints');
     assert.equal(await page.locator('#contour option').count(), 2);
     await page.click('#code');
     const text = await page.locator('#source').inputValue();
@@ -205,6 +216,8 @@ const fixture = (name, x, y, w, h) => ({
     });
     assert.equal(await area(), 75000);
     await page.reload();
+    await page.waitForSelector('.shape');
+    await page.click('#editPoints');
     await page.waitForSelector('.shape');
     assert.equal(await area(), 75000);
     assert.equal((await contours()).length, 2);
