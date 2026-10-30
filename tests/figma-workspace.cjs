@@ -165,19 +165,17 @@ const assert = require('node:assert/strict');
     await page.click('#playMedia');
     await page.waitForFunction(() => !document.querySelector('.media-content video').paused);
     assert.equal(
-      await page
-        .locator('.media-content video')
-        .evaluate((el) =>
-          el.dispatchEvent(
-            new PointerEvent('pointerdown', {
-              bubbles: true,
-              cancelable: true,
-              button: 0,
-              clientX: 10,
-              clientY: 10,
-            }),
-          ),
+      await page.locator('.media-content video').evaluate((el) =>
+        el.dispatchEvent(
+          new PointerEvent('pointerdown', {
+            bubbles: true,
+            cancelable: true,
+            button: 0,
+            clientX: 10,
+            clientY: 10,
+          }),
         ),
+      ),
       true,
       'native video controls keep their pointer events',
     );
