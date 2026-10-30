@@ -11,6 +11,8 @@ const assert = require('node:assert/strict'),
       errors = [];
     page.on('pageerror', (e) => e.message !== 'Canceled' && errors.push(e.message));
     await page.goto(require('./browser-helper.cjs').editorURL);
+    await page.waitForSelector('.shape');
+    await page.click('#editPoints');
     await page.waitForSelector('.handle');
     const set = async (id, value) => {
       await page.locator('#' + id).fill(value);
@@ -28,6 +30,8 @@ const assert = require('node:assert/strict'),
     assert.equal(await page.locator('#radius').inputValue(), '50');
     assert.match(await page.locator('.shape').getAttribute('d'), /A 110 110/);
     await page.reload();
+    await page.waitForSelector('.shape');
+    await page.click('#editPoints');
     await page.waitForSelector('.handle');
     assert.equal(await page.locator('#radius').inputValue(), '50');
     assert.equal(await page.locator('#radiusUnit').inputValue(), '%');
