@@ -1,3 +1,4 @@
+import { iconMarkup } from './icons';
 import * as G from '../domain/geometry';
 import type { Shape, Ring, Point, GridSettings, View, RingReference } from '../domain/models';
 import { element as $, formControl, setFormValue } from './dom';
@@ -11,6 +12,8 @@ export function el<K extends keyof SVGElementTagNameMap>(
   return e;
 }
 export interface RenderContext {
+  renderLayers(): void;
+  editingPoints: boolean;
   shapes: Shape[];
   selected: string | null;
   vertex: number;
@@ -48,7 +51,7 @@ export function createRenderer(ctx: RenderContext) {
     const partial = ctx.selectedPoints.size || ctx.selectedSegments.size,
       points = ctx.allSelectedPoints();
     ctx.shapes
-      .filter((s) => ctx.selectedIds.has(s.id))
+      .filter((s) => ctx.selectedIds.has(s.id) && !s.locked && !s.hidden && G.editablePoints(s))
       .forEach((s) => {
         if (!partial && ctx.selectedIds.size !== 1) return;
         G.rings(s).forEach((ring) =>
@@ -150,7 +153,12 @@ export function createRenderer(ctx: RenderContext) {
         .map((k) => JSON.parse(k).slice(1).join(':')),
     );
     const s = ctx.current();
-    const single = !!s && ctx.selectedIds.size === 1;
+    const single = !!s && ctx.selectedIds.size === 1 && !s.locked && !s.hidden;
+    document.querySelector('.stage')!.classList.toggle('editing-points', ctx.editingPoints);
+    $('editPoints').classList.toggle('active', ctx.editingPoints);
+    $('modeStatus').textContent = ctx.editingPoints
+      ? 'Editando pontos · Esc para voltar'
+      : $('modeStatus').textContent;
     document.querySelector('.stage')!.classList.toggle('map-light', ctx.background === 'light');
     $('background').textContent = ctx.background === 'light' ? '☾ Fundo escuro' : '☀ Fundo claro';
     $('background').setAttribute('aria-pressed', String(String(ctx.background === 'light')));
@@ -168,6 +176,8 @@ export function createRenderer(ctx: RenderContext) {
         group.append(el('path', { class: 'shape' }), el('path', { class: 'shape-hit' }));
       }
       old.delete(item.id);
+      group.style.display = item.hidden ? 'none' : '';
+      group.style.pointerEvents = item.locked ? 'none' : '';
       const [visible, hit] = group.children;
       for (const node of [visible, hit]) {
         node.setAttribute('d', String(G.shapePath(item)));
@@ -175,7 +185,7 @@ export function createRenderer(ctx: RenderContext) {
         node.setAttribute('fill-rule', String('evenodd'));
       }
       for (const [key, value] of Object.entries({
-        fill: item.noFill ? 'none' : item.fill,
+        fill: item.media || item.noFill ? 'none' : item.fill,
         stroke: item.stroke,
         'stroke-width': item.strokeWidth,
         'stroke-linejoin': item.join,
@@ -183,6 +193,42 @@ export function createRenderer(ctx: RenderContext) {
         opacity: item.opacity / 100,
       }))
         visible.setAttribute(key, String(value));
+      (visible as SVGElement).style.filter = item.shadow ? 'drop-shadow(0px 4px 8px #0004)' : '';
+      if (item.media) {
+        let media = group.querySelector<SVGGElement>('.media-content');
+        if (!media) {
+          media = el('g', { class: 'media-content' });
+          group.append(media);
+        }
+        const b = G.bounds(item);
+        if (media.dataset.src !== item.media.src) {
+          media.innerHTML = G.mediaMarkup(item);
+          media.dataset.src = item.media.src;
+          const video = media.querySelector('video');
+          if (video) {
+            video.muted = true;
+            video.controls = true;
+          }
+        }
+        const content = media.firstElementChild!;
+        for (const [k, v] of Object.entries({
+          x: b.x,
+          y: b.y,
+          width: b.width,
+          height: b.height,
+          transform: `translate(${item.media.flipX ? 2 * b.x + b.width : 0} ${item.media.flipY ? 2 * b.y + b.height : 0}) scale(${item.media.flipX ? -1 : 1} ${item.media.flipY ? -1 : 1})`,
+        }))
+          content.setAttribute(k, String(v));
+        const video = media.querySelector('video');
+        if (video) {
+          if (item.hidden) video.pause();
+          video.style.width = b.width + 'px';
+          video.style.height = b.height + 'px';
+        }
+        media.style.opacity = String(item.opacity / 100);
+        media.style.filter = item.shadow ? 'drop-shadow(0px 4px 8px #0004)' : '';
+      } else group.querySelector('.media-content')?.remove();
+      (hit as SVGElement).style.pointerEvents = item.locked ? 'none' : '';
       hit.setAttribute('stroke-width', String(String(Math.max(item.strokeWidth, 14 / ctx.view.z))));
       // Do not reinsert existing nodes: native click/double-click targets remain stable.
       if ($('shapes').children[index] !== group)
@@ -209,7 +255,7 @@ export function createRenderer(ctx: RenderContext) {
             'pointer-events': 'stroke',
             'data-resize': i,
             fill: 'none',
-            stroke: '#d99046',
+            stroke: '#0d99ff',
             'stroke-width': 1 / ctx.view.z,
             style: 'cursor:' + (i % 2 ? 'nesw-resize' : 'nwse-resize'),
           }),
@@ -242,6 +288,10 @@ export function createRenderer(ctx: RenderContext) {
       'point',
       'px',
       'py',
+      'shadow',
+      'rotation',
+      'flipX',
+      'flipY',
       'shapeX',
       'shapeY',
       'shapeWidth',
@@ -257,6 +307,14 @@ export function createRenderer(ctx: RenderContext) {
       ctx.vertex = Math.max(0, Math.min(ctx.vertex, points.length - 1));
       $('title').textContent = s.name;
       const size = G.bounds(s);
+      $('shadow').checked = !!s.shadow;
+      $('rotation').disabled = !!s.media;
+      const vector = G.vectorShape(s);
+      for (const id of ['radius', 'radiusUnit', 'cut', 'join', 'fill', 'noFill'] as const)
+        $(id).disabled = !!s.media || !vector;
+      for (const id of ['px', 'py', 'point', 'contour', 'remove'] as const)
+        $(id).disabled = !ctx.editingPoints || !G.editablePoints(s);
+
       setFormValue($('shapeX'), String(size.x));
       setFormValue($('shapeY'), String(size.y));
       setFormValue($('shapeWidth'), String(size.width));
@@ -293,9 +351,7 @@ export function createRenderer(ctx: RenderContext) {
       $('title').textContent =
         ctx.selectedIds.size > 1
           ? ctx.selectedIds.size + ' formas selecionadas'
-          : ctx.shapes.length
-            ? 'Selecione uma forma'
-            : 'Projeto vazio';
+          : s?.name || (ctx.shapes.length ? 'Selecione uma forma' : 'Projeto vazio');
       (
         [
           'name',
@@ -319,56 +375,46 @@ export function createRenderer(ctx: RenderContext) {
       $('count').textContent = ctx.shapes.length + ' FORMAS';
     }
     $('emptyCanvas').hidden = ctx.shapes.length > 0;
-    drawPartControls();
-    $('layers').replaceChildren(
-      ...[...ctx.shapes]
-        .reverse()
-        .filter((item) =>
-          item.name.toLocaleLowerCase().includes($('layerFilter').value.toLocaleLowerCase().trim()),
-        )
-        .map((item) => {
-          const b = document.createElement('button');
-          b.className = 'layer' + (ctx.selectedIds.has(item.id) ? ' active' : '');
-          b.textContent = '◇  ' + item.name;
-          b.title = item.name;
-          b.setAttribute('aria-pressed', String(ctx.selectedIds.has(item.id)));
-          b.ondblclick = () => {
-            ctx.selectShape(item.id);
-            render();
-            $('name').focus();
-            $('name').select();
-          };
-          b.onclick = (e) => {
-            ctx.selectShape(item.id, e.shiftKey || e.ctrlKey || e.metaKey);
-            render();
-          };
-          return b;
-        }),
-    );
-    if (!ctx.shapes.length) {
-      const p = document.createElement('p');
-      p.textContent = 'Nenhuma forma no projeto.';
-      p.className = 'empty-layers';
-      $('layers').append(p);
-    }
+    if (ctx.editingPoints) drawPartControls();
+    ctx.renderLayers();
     (['layerUp', 'layerDown', 'fitSelection'] as const).forEach(
       (id) => ($(id).disabled = !ctx.selectedIds.size),
     );
     document
       .querySelectorAll<HTMLButtonElement>('[data-align]')
-      .forEach((b) => (b.disabled = !ctx.selectedIds.size));
+      .forEach(
+        (b) =>
+          (b.disabled = !ctx.shapes.some(
+            (s) => ctx.selectedIds.has(s.id) && !s.locked && !s.hidden,
+          )),
+      );
     $('undo').disabled = !ctx.history.length;
     $('redo').disabled = !ctx.future.length;
-    (['duplicate', 'delete'] as const).forEach((id) => ($(id).disabled = !s));
-    $('remove').disabled = !single || ctx.currentPoints().length <= 3;
+    (['duplicate', 'delete'] as const).forEach(
+      (id) => ($(id).disabled = !ctx.shapes.some((s) => ctx.selectedIds.has(s.id) && !s.locked)),
+    );
+    $('remove').disabled =
+      !single || !ctx.editingPoints || !G.vectorShape(s!) || ctx.currentPoints().length <= 3;
+    $('playMedia').hidden = s?.type !== 'video' || !!s?.hidden;
+    $('toggleLock').disabled = !ctx.selectedIds.size;
+    $('toggleVisibility').disabled = !ctx.selectedIds.size;
+    $('toggleLock').innerHTML = iconMarkup(s?.locked ? 'lock' : 'unlock');
+    $('toggleVisibility').innerHTML = iconMarkup(s?.hidden ? 'eye-off' : 'eye');
+    $('toggleLock').setAttribute('aria-pressed', String(!!s?.locked));
+    $('toggleVisibility').setAttribute('aria-pressed', String(!s?.hidden));
     document
       .querySelectorAll<HTMLButtonElement>('[data-operation]')
       .forEach(
-        (b) => (b.disabled = ctx.selectedIds.size < (b.dataset.operation === 'flatten' ? 1 : 2)),
+        (b) =>
+          (b.disabled =
+            ctx.shapes.filter(
+              (s) => ctx.selectedIds.has(s.id) && !s.locked && !s.hidden && G.vectorShape(s),
+            ).length < (b.dataset.operation === 'flatten' ? 1 : 2) ||
+            ctx.shapes.some((s) => ctx.selectedIds.has(s.id) && !G.vectorShape(s))),
       );
     syncGrid();
     camera();
-    const geometry = G.svg(ctx.shapes);
+    const geometry = ctx.editingCode || !$('dialog').hidden ? G.svg(ctx.shapes) : '';
     if (!$('dialog').hidden && !ctx.editingCode && geometry !== ctx.lastCodeGeometry) {
       setFormValue($('source'), String(geometry));
       ctx.codeInvalid = false;
