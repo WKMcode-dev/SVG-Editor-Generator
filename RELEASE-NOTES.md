@@ -1,13 +1,14 @@
-# SVG Editor Generator 1.9.0
+# SVG Editor Generator 2.0.0
 
-- Espaço de trabalho com camadas à esquerda, ferramentas no topo, canvas central e inspetor de propriedades à direita.
-- Busca por nome, renomeação por duplo clique e ordem de empilhamento das camadas com seleção múltipla.
-- Campos X/Y para posicionar a forma inteira sem deformação.
-- Seis alinhamentos: à prancheta para uma forma, ou aos limites da seleção para várias formas.
-- Enquadramento da seleção e atalhos Shift+1/2, Ctrl+A, R, Ctrl+]/[ e ajuda pelo botão ?.
-- Setas movem formas inteiras; seleção explícita de pontos/segmentos continua permitindo edição parcial.
-- Inspetor com seções recolhíveis e interface validada a partir de 980 × 700 px.
-- Mantidos TypeScript estrito, Tauri/Rust, salvamento automático, operações booleanas, precisão dos pontos e Monaco offline.
-- Testes cobrem edição, histórico, persistência, camadas, alinhamentos e layout em navegador real.
+- Canvas livre e exportação SVG calculada pelos limites do desenho, sem área fixa de 800 × 500.
+- Barra inferior flutuante com menu de formas e interface clara de cores neutras.
+- Ferramentas de arraste: R retângulo, O elipse, L linha, Shift+L seta; polígono e estrela no menu. Shift restringe proporções/ângulos.
+- Um clique seleciona; duplo clique ou Enter entra na edição de pontos; Esc sai.
+- Imagens e vídeos por Ctrl+Shift+K, com reprodução de vídeo, redimensionamento e espelhamento. Mídia incorporada ao projeto, até 12 MB por arquivo e cerca de 24 MB no projeto.
+- Gestos de pinça para touchpad, WebKit e dois ponteiros touch; redimensionar painéis preserva zoom.
+- Camadas com renomeação inline, bloqueio, visibilidade, grupos recolhíveis e presets pessoais locais.
+- Inspetor com Posição, Layout, Aparência, Preenchimento, Borda, Efeitos e Exportação; botão de código preservado.
+- Autosave de projetos grandes em IndexedDB, com restauração ao iniciar e histórico com limite de memória.
+- Sincronização entre código e canvas protege novas edições contra correções pendentes antigas.
 
-O aplicativo Windows e a versão web têm salvamentos locais independentes. O projeto continua sendo um editor vetorial SVG: esta versão não inclui componentes vinculados, Auto Layout, colaboração ou prototipagem de telas.
+As elipses viram polígonos de 96 vértices ao editar pontos; a conversão pode ser desfeita. Vídeos em SVG usam foreignObject e exigem um visualizador compatível; a exportação HTML é indicada para compartilhar a reprodução. Navegador e desktop têm armazenamentos locais independentes.
