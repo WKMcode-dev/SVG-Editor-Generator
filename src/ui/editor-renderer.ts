@@ -113,19 +113,32 @@ export function createRenderer(ctx: RenderContext) {
       String(`translate(${ctx.view.x} ${ctx.view.y}) scale(${ctx.view.z})`),
     );
     $('zoom').textContent = Math.round(ctx.view.z * 100) + '%';
+    syncGrid();
   }
   function syncGrid() {
+    // Reveal subdivisions as they become readable; keep snapping independent.
+    let cell = ctx.grid.cell;
+    while (cell * ctx.view.z < 12) cell *= 2;
+    while (cell * ctx.view.z >= 24 && cell > 1) cell = Math.max(1, cell / 2);
+    $('gridRect').setAttribute('data-cell', String(cell));
     for (const id of ['pattern', 'dotPattern']) {
       const pattern = $(id);
-      pattern.setAttribute('width', String(String(ctx.grid.cell)));
-      pattern.setAttribute('height', String(String(ctx.grid.cell)));
+      pattern.setAttribute('width', String(cell));
+      pattern.setAttribute('height', String(cell));
       pattern.setAttribute('x', String(String(ctx.grid.originX)));
       pattern.setAttribute('y', String(String(ctx.grid.originY)));
     }
+    $('pattern').firstElementChild!.setAttribute('d', String(`M ${cell} 0 H 0 V ${cell}`));
     $('pattern').firstElementChild!.setAttribute(
-      'd',
-      String(`M ${ctx.grid.cell} 0 H 0 V ${ctx.grid.cell}`),
+      'stroke',
+      ctx.background === 'light' ? '#bcb5ca' : '#393443',
     );
+    $('dotPattern').firstElementChild!.setAttribute(
+      'fill',
+      ctx.background === 'light' ? '#9c92af' : '#60536f',
+    );
+    $('pattern').firstElementChild!.setAttribute('stroke-width', String(0.6 / ctx.view.z));
+    $('dotPattern').firstElementChild!.setAttribute('r', String(0.8 / ctx.view.z));
     $('gridRect').setAttribute(
       'fill',
       String(`url(#${ctx.grid.type === 'dots' ? 'dotPattern' : 'pattern'})`),
@@ -255,7 +268,7 @@ export function createRenderer(ctx: RenderContext) {
             'pointer-events': 'stroke',
             'data-resize': i,
             fill: 'none',
-            stroke: '#0d99ff',
+            stroke: '#a78bfa',
             'stroke-width': 1 / ctx.view.z,
             style: 'cursor:' + (i % 2 ? 'nesw-resize' : 'nwse-resize'),
           }),

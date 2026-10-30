@@ -110,7 +110,7 @@ const assert = require('node:assert/strict'),
     await page.click('#background');
     assert.equal(
       await page.locator('.stage').evaluate((e) => getComputedStyle(e).backgroundColor),
-      'rgb(37, 38, 41)',
+      'rgb(17, 17, 23)',
     );
     await page.reload();
     await page.waitForFunction(() => !!window.CodeWorkbench);

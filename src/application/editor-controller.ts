@@ -437,6 +437,62 @@ function local(e: { clientX: number; clientY: number }) {
   const r = $('canvas').getBoundingClientRect();
   return [(e.clientX - r.left - view.x) / view.z, (e.clientY - r.top - view.y) / view.z] as Point;
 }
+// Guide tolerance stays constant on screen, independent of canvas zoom.
+function smartDelta(moving: Point[], targets: Point[], raw: Point, alt: boolean): Point {
+  const overlay = document.getElementById('alignmentGuides')!;
+  overlay.replaceChildren();
+  if (alt || !moving.length) return raw;
+  const delta = [...raw] as Point;
+  for (const axis of [0, 1]) {
+    let best = 6 / view.z;
+    let match: { source: Point; target: Point; correction: number } | undefined;
+    for (const source of moving)
+      for (const target of targets) {
+        const correction = target[axis] - source[axis] - raw[axis];
+        if (Math.abs(correction) < best) {
+          best = Math.abs(correction);
+          match = { source, target, correction };
+        }
+      }
+    if (!match) continue;
+    delta[axis] = raw[axis] + match.correction;
+    const coordinate = match.target[axis];
+    const other = 1 - axis;
+    const a = Math.min(match.source[other] + raw[other], match.target[other]) - 18 / view.z;
+    const b = Math.max(match.source[other] + raw[other], match.target[other]) + 18 / view.z;
+    overlay.append(
+      el('line', {
+        x1: axis === 0 ? coordinate : a,
+        y1: axis === 0 ? a : coordinate,
+        x2: axis === 0 ? coordinate : b,
+        y2: axis === 0 ? b : coordinate,
+        stroke: '#e548a6',
+        'stroke-width': 1 / view.z,
+        'stroke-dasharray': `${4 / view.z} ${3 / view.z}`,
+      }),
+    );
+    overlay.append(
+      el('circle', {
+        cx: match.target[0],
+        cy: match.target[1],
+        r: 4 / view.z,
+        fill: '#e548a6',
+        stroke: '#fff',
+        'stroke-width': 1 / view.z,
+      }),
+    );
+  }
+  return delta;
+}
+function alignmentTargets(excluded: Set<string>, parts = false): Point[] {
+  return shapes
+    .filter((s) => !s.hidden && (parts || !excluded.has(s.id)))
+    .flatMap((s) =>
+      G.rings(s).flatMap((r) =>
+        r.points.filter((_, i) => !parts || !excluded.has(partKey(s.id, r.p, r.r, i))),
+      ),
+    );
+}
 function snap(n: number, axis: number) {
   const step = axis ? grid.stepY : grid.stepX,
     origin = axis ? grid.originY : grid.originX;
@@ -618,11 +674,45 @@ $('duplicate').onclick = () =>
     selectShape(copies.at(-1)!.id);
     selectedIds = new Set(copies.map((s) => s.id));
   });
-$('delete').onclick = () =>
+function deleteSelection(parts = true) {
+  if (drag) return;
   change(() => {
-    shapes = shapes.filter((s) => !selectedIds.has(s.id) || s.locked);
+    const keys = allSelectedPoints();
+    if (parts && editingPoints && keys.size) {
+      let limited = false;
+      for (const shape of selectedShapes()) {
+        for (const ring of G.rings(shape)) {
+          const indexes = ring.points
+            .map((_, i) => i)
+            .filter((i) => keys.has(partKey(shape.id, ring.p, ring.r, i)));
+          if (!indexes.length) continue;
+          const minimum = shape.type === 'line' || shape.type === 'arrow' ? 2 : 3;
+          if (ring.points.length - indexes.length < minimum) {
+            limited = true;
+            continue;
+          }
+          for (const i of indexes.reverse()) {
+            shiftCornerIndexes(shape, ring.p, ring.r, i, true);
+            ring.points.splice(i, 1);
+          }
+          dirty(shape);
+        }
+      }
+      clearParts();
+      vertex = 0;
+      if (limited)
+        toast(
+          'Contornos precisam de pelo menos 3 pontos; linhas, 2. Esc volta à seleção da forma.',
+        );
+      return;
+    }
+    // In point mode, an empty point selection must not delete the whole shape.
+    if (parts && editingPoints) return;
+    shapes = shapes.filter((s) => !selectedIds.has(s.id) || s.locked || s.hidden);
     clearSelection();
   });
+}
+$('delete').onclick = () => deleteSelection(false);
 $('undo').onclick = () => restore(history, future);
 $('redo').onclick = () => restore(future, history);
 function tool(v: Tool) {
@@ -1213,18 +1303,24 @@ $('canvas').onpointermove = (e) => {
   } else if (drag.kind === 'parts') {
     const start = drag.start,
       anchor = pointRef(drag.anchor, drag.shapes)!.point,
-      delta = p.map(
-        (n, axis) => snap(anchor[axis] + n - start[axis], axis) - anchor[axis],
-      ) as Point;
+      delta = smartDelta(
+        drag.keys.map((key) => pointRef(key, drag!.kind === 'parts' ? drag!.shapes : [])!.point),
+        alignmentTargets(new Set(drag.keys), true),
+        p.map((n, axis) => snap(anchor[axis] + n - start[axis], axis) - anchor[axis]) as Point,
+        e.altKey,
+      );
     const next = drag.shapes.map((s) => G.normalize(structuredClone(s)));
     moveParts(new Set(drag.keys), delta, next);
     next.forEach((s) => (shapes[shapes.findIndex((item) => item.id === s.id)] = s));
   } else {
     const start = drag.start,
       anchor = drag.shapes[0].points[0],
-      delta = p.map(
-        (n, axis) => snap(anchor[axis] + n - start[axis], axis) - anchor[axis],
-      ) as Point;
+      delta = smartDelta(
+        drag.shapes.flatMap((s) => G.rings(s).flatMap((r) => r.points)),
+        alignmentTargets(new Set(drag.shapes.map((s) => s.id))),
+        p.map((n, axis) => snap(anchor[axis] + n - start[axis], axis) - anchor[axis]) as Point,
+        e.altKey,
+      );
     drag.shapes.forEach((saved) => {
       const next = G.normalize(structuredClone(saved));
       G.mapShape(next, (q) => q.map((n, axis) => G.round(n + delta[axis])) as Point);
@@ -1234,6 +1330,7 @@ $('canvas').onpointermove = (e) => {
   render();
 };
 function end(e?: { type: string }) {
+  document.getElementById('alignmentGuides')!.replaceChildren();
   if (!drag) return;
   const d = drag;
   drag = null;
@@ -1623,6 +1720,8 @@ document.addEventListener('keydown', (e) => {
   if (restoringLarge) return;
   if (
     ['INPUT', 'TEXTAREA', 'SELECT'].includes(targetNode.tagName) ||
+    targetNode.isContentEditable ||
+    targetNode.closest('[contenteditable]:not([contenteditable="false"])') ||
     targetNode.closest('.monaco-editor') ||
     $('gridDialog').open ||
     $('shortcutsDialog').open
@@ -1696,7 +1795,11 @@ document.addEventListener('keydown', (e) => {
     if (k === 'd') $('duplicate').click();
     return;
   }
-  if (e.key === 'Delete') $('delete').click();
+  if (!command && !e.altKey && !e.isComposing && ['Delete', 'Backspace'].includes(e.key)) {
+    e.preventDefault();
+    deleteSelection();
+    return;
+  }
   if (e.key === 'Escape') {
     if (drag) end({ type: 'pointercancel' });
     if (editingPoints) {

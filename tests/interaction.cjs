@@ -76,11 +76,12 @@ async function editor(saved) {
       down(x, y, extra);
       up();
     },
-    move(x, y) {
+    move(x, y, extra = {}) {
       $('canvas').onpointermove({
         pointerId: 1,
         target: w.document.querySelector('.shape-hit'),
         ...screen(x, y),
+        ...extra,
       });
     },
     resize: () => resize(),
@@ -281,6 +282,65 @@ test('arrow keys move the selected layer without deforming a single vertex', asy
     );
     e.$('undo').click();
     assert.deepEqual(e.points(), initial);
+  } finally {
+    await e.close();
+  }
+});
+test('grade subdivide com zoom e guias encaixam pontos sem mover os demais', async () => {
+  const e = await editor();
+  try {
+    e.$('grid').click();
+    const initialCell = Number(e.$('gridRect').getAttribute('data-cell'));
+    for (let i = 0; i < 5; i++) e.$('plus').click();
+    assert.ok(Number(e.$('gridRect').getAttribute('data-cell')) < initialCell);
+    const before = e.points();
+    const [x, y] = before[0];
+    // Move close to the X coordinate of the opposite corner.
+    e.down(x, y);
+    e.move(before[1][0] - 1, y + 15);
+    assert.ok(e.$('alignmentGuides').querySelectorAll('line').length > 0);
+    assert.equal(e.points()[0][0], before[1][0]);
+    assert.deepEqual(e.points().slice(1), before.slice(1));
+    e.up();
+    assert.equal(e.$('alignmentGuides').children.length, 0);
+    e.$('undo').click();
+    assert.deepEqual(e.points(), before);
+    e.down(x, y);
+    e.move(before[1][0] - 1, y + 15, { altKey: true });
+    assert.equal(e.$('alignmentGuides').children.length, 0);
+    assert.equal(e.points()[0][0], before[1][0] - 1);
+    e.up();
+  } finally {
+    await e.close();
+  }
+});
+test('Backspace deletes selected points or shapes, supports undo and leaves text editing alone', async () => {
+  const e = await editor();
+  const key = (target, value = 'Backspace') => {
+    const event = new e.w.KeyboardEvent('keydown', { key: value, bubbles: true, cancelable: true });
+    target.dispatchEvent(event);
+    return event;
+  };
+  try {
+    const before = e.points();
+    e.click(...before[0]);
+    assert.equal(key(e.w.document.body).defaultPrevented, true);
+    assert.equal(e.points().length, 3);
+    e.$('undo').click();
+    assert.deepEqual(e.points(), before);
+    key(e.w.document.body, 'Escape');
+    for (const id of ['shapeX', 'source', 'layerFilter']) {
+      assert.equal(key(e.$(id)).defaultPrevented, false);
+      assert.equal(e.w.document.querySelectorAll('.shape').length, 1);
+    }
+    const text = e.w.document.createElement('div');
+    text.setAttribute('contenteditable', 'true');
+    e.w.document.body.append(text);
+    assert.equal(key(text).defaultPrevented, false);
+    key(e.w.document.body);
+    assert.equal(e.w.document.querySelectorAll('.shape').length, 0);
+    e.$('undo').click();
+    assert.deepEqual(e.points(), before);
   } finally {
     await e.close();
   }

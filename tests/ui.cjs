@@ -83,7 +83,11 @@ const assert = require('node:assert/strict'),
     await page.fill('#stepY', '4');
     await page.locator('#stepY').press('Tab');
     await page.click('#closeGrid');
-    assert.equal(await page.locator('#dotPattern').getAttribute('width'), '32');
+    assert.equal(await page.locator('#cellSize').inputValue(), '32');
+    assert.equal(
+      await page.locator('#dotPattern').getAttribute('width'),
+      await page.locator('#gridRect').getAttribute('data-cell'),
+    );
     assert.equal(await page.locator('#gridRect').getAttribute('fill'), 'url(#dotPattern)');
     await dragPoint(0, 205, 147);
     assert.equal(await firstX(), 208);
@@ -165,7 +169,11 @@ const assert = require('node:assert/strict'),
     await page.waitForSelector('.shape');
     await page.click('#editPoints');
     assert.equal(await firstX(), changed[0]);
-    assert.equal(await page.locator('#dotPattern').getAttribute('width'), '32');
+    assert.equal(await page.locator('#cellSize').inputValue(), '32');
+    assert.equal(
+      await page.locator('#dotPattern').getAttribute('width'),
+      await page.locator('#gridRect').getAttribute('data-cell'),
+    );
     assert.equal(await page.locator('#stepX').inputValue(), '8');
     assert.deepEqual(errors, []);
     console.log(

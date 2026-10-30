@@ -16,7 +16,7 @@
     <header class="app-header">
       <button id="toggleLeft" title="Alternar painel esquerdo">☷</button>
       <div class="brand">
-        <span class="brand-symbol">◇</span> SVG Generator <span class="version">2.0</span>
+        <span class="brand-symbol">◇</span> SVG Generator <span class="version">2.0.1</span>
       </div>
       <span id="saveStatus" role="status">Salvo neste dispositivo</span>
       <nav>
@@ -54,7 +54,7 @@
               ><button id="layerDown" title="Descer camada (Ctrl+[)">↓</button
               ><button id="ungroupSelection" title="Desagrupar (Ctrl+Shift+G)">⊟</button
               ><button id="duplicate" title="Duplicar (Ctrl+D)">⧉</button
-              ><button id="delete" title="Excluir (Delete)">⌫</button>
+              ><button id="delete" title="Excluir forma">⌫</button>
             </div>
           </section>
           <section id="presetsPanel" hidden="">
@@ -103,6 +103,7 @@
               <g id="edgeHighlights" pointer-events="none"></g>
               <g id="handles"></g>
               <g id="marquee" pointer-events="none"></g>
+              <g id="alignmentGuides" pointer-events="none"></g>
             </g>
           </svg>
           <div id="emptyCanvas" class="empty-canvas">
@@ -300,7 +301,7 @@
           <div class="view-controls">
             <label><input id="grid" type="checkbox" />Grade</label
             ><button id="magnet" title="Ajustar à grade (M)">⌗</button
-            ><button id="gridSettings" title="Ajustes da grade">⚙</button
+            ><button id="gridSettings" title="Ajustes da grade">⚙ Grade</button
             ><button id="background" title="Alternar fundo">◐</button
             ><button id="fit" title="Enquadrar tudo (Shift+1)">Tudo</button
             ><button id="fitSelection" title="Enquadrar seleção (Shift+2)">Seleção</button>
@@ -466,7 +467,7 @@
         </select></label
       >
       <label
-        >Tamanho da célula (px)<input
+        >Célula base (subdivide com zoom)<input
           id="cellSize"
           max="200"
           min="1"
@@ -501,8 +502,9 @@
         /></label>
       </div>
       <p>
-        O ímã usa os passos definidos, independentemente do tamanho visual da célula. As setas movem
-        a seleção por um passo; Shift multiplica por 10.
+        A grade subdivide com o zoom até 1 px. O ímã usa os passos definidos, independentemente da
+        célula visível. Guias rosas indicam encaixes entre pontos; segure Alt para ignorá-los. As
+        setas movem a seleção por um passo; Shift multiplica por 10.
       </p>
       <div class="code-actions">
         <button id="stepCell">Passo = célula</button
@@ -531,6 +533,8 @@
         <dd>Shift+1 / Shift+2</dd>
         <dt>Selecionar tudo / duplicar</dt>
         <dd>Ctrl+A / Ctrl+D</dd>
+        <dt>Excluir pontos / forma selecionada</dt>
+        <dd>Backspace / Delete · Esc sai da edição de pontos</dd>
         <dt>Desfazer / refazer</dt>
         <dd>Ctrl+Z / Ctrl+Shift+Z</dd>
         <dt>Bloquear / ocultar seleção</dt>

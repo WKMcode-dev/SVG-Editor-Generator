@@ -98,3 +98,7 @@ Até 100 camadas e 1.000 vértices por forma, com coordenadas entre −100.000 e
 ## Licenças
 
 Código sob MIT. Monaco e polygon-clipping são dependências empacotadas; suas licenças são incluídas em dist/licenses. Referência inicial de interação: [Painel-Ping-Network](https://github.com/WKMcode-dev/Painel-Ping-Network).
+
+### Grade e alinhamento
+
+O botão **⚙ Grade** no rodapé ajusta célula base, estilo, origem e passos do ímã. A grade ganha subdivisões conforme o zoom aumenta, até 1 px, sem alterar o passo escolhido. Ao arrastar pontos, segmentos ou formas, guias rosas e marcadores indicam alinhamento com os demais pontos visíveis. A tolerância é de 6 pixels de tela em qualquer zoom. Segure Alt para ignorar as guias durante o movimento.

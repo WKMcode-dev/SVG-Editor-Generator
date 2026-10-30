@@ -1,13 +1,13 @@
 :root {
-  color-scheme: light;
-  --orange: #0d99ff;
-  --border: #e6e6e6;
-  --text: #202020;
-  --surface: #fff;
-  --field: #f5f5f5;
+  color-scheme: dark;
+  --orange: #a78bfa;
+  --border: #353440;
+  --text: #e9e7f0;
+  --surface: #22222b;
+  --field: #2a2935;
 }
 body {
-  background: #e5e5e5;
+  background: #18181f;
   color: var(--text);
   font:
     12px Inter,
@@ -29,8 +29,8 @@ button {
   padding: 7px 9px;
 }
 button:hover {
-  background: #f2f2f2;
-  color: #202020;
+  background: #302d3e;
+  color: #e9e7f0;
   border-color: transparent;
 }
 button:disabled {
@@ -39,19 +39,19 @@ button:disabled {
 }
 .primary,
 .primary:hover {
-  background: #0d99ff;
-  color: #fff;
-  border-color: #0d99ff;
+  background: #a78bfa;
+  color: #22222b;
+  border-color: #a78bfa;
 }
 .active,
 .layer.active {
-  background: #e8f4ff;
-  color: #0874c1;
+  background: #342b4c;
+  color: #ddd0ff;
   border-color: transparent;
 }
 button:focus-visible,
 summary:focus-visible {
-  outline: 2px solid #0d99ff;
+  outline: 2px solid #a78bfa;
   outline-offset: 2px;
 }
 [hidden] {
@@ -61,7 +61,7 @@ header.app-header {
   height: 48px;
   padding: 0 12px;
   gap: 10px;
-  background: #fff;
+  background: #22222b;
   border-bottom: 1px solid var(--border);
 }
 .brand {
@@ -73,16 +73,16 @@ header.app-header {
 }
 .brand-symbol {
   font-size: 23px;
-  color: #353535;
+  color: #c4b5fd;
 }
 .brand .version {
   margin: 0 0 0 8px;
   font: 10px inherit;
-  color: #999;
+  color: #a5a0b7;
 }
 #saveStatus {
   font-size: 10px;
-  color: #777;
+  color: #a5a0b7;
 }
 header nav {
   gap: 4px;
@@ -105,8 +105,8 @@ main > .code-panel {
   min-height: 0;
 }
 aside {
-  background: #fff;
-  color: #202020;
+  background: #22222b;
+  color: #e9e7f0;
   padding: 0;
   border-color: var(--border);
   overflow: hidden;
@@ -188,7 +188,7 @@ aside {
   width: calc(100% - 24px);
   margin: 0 12px 10px;
   padding: 8px;
-  background: #f5f5f5;
+  background: #2a2935;
   border: 0;
   border-radius: 6px;
   font-size: 11px;
@@ -216,12 +216,12 @@ aside {
 .presets button {
   font-size: 25px;
   padding: 10px;
-  background: #f7f7f7;
+  background: #25252f;
 }
 .presets small {
   display: block;
   font-size: 10px;
-  color: #555;
+  color: #b6b1c6;
   margin-top: 6px;
 }
 .layer-row {
@@ -261,7 +261,7 @@ aside {
   font-size: 11px;
 }
 .layer-glyph {
-  color: #777;
+  color: #a5a0b7;
   width: 16px;
   flex-shrink: 0;
 }
@@ -274,7 +274,7 @@ aside {
 .layer-toggle {
   padding: 4px 2px;
   font-size: 12px;
-  color: #777;
+  color: #a5a0b7;
   opacity: 0;
   flex-shrink: 0;
 }
@@ -306,14 +306,14 @@ aside {
 .saved-preset button:first-child {
   flex: 1;
   text-align: left;
-  background: #f5f5f5;
+  background: #2a2935;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .hint,
 p {
   font-size: 10px;
-  color: #888;
+  color: #a5a0b7;
   line-height: 1.6;
 }
 .hint {
@@ -321,27 +321,27 @@ p {
 }
 .empty-layers {
   padding: 12px;
-  color: #999;
+  color: #a5a0b7;
 }
 .workspace {
   display: flex;
   flex-direction: column;
   position: relative;
   min-width: 0;
-  background: #e5e5e5;
+  background: #18181f;
 }
 .stage {
   position: relative;
   flex: 1;
   min-height: 0;
-  background: #e5e5e5;
+  background: #18181f;
   overflow: hidden;
 }
 .stage.map-light {
-  background: #e5e5e5;
+  background: #18181f;
 }
 .stage:not(.map-light) {
-  background: #252629;
+  background: #111117;
 }
 #canvas {
   width: 100%;
@@ -353,10 +353,10 @@ p {
 .empty-canvas {
   pointer-events: none;
   background: transparent;
-  color: #999;
+  color: #a5a0b7;
 }
 .empty-canvas h2 {
-  color: #888;
+  color: #a5a0b7;
 }
 .empty-canvas span {
   color: #aaa;
@@ -369,7 +369,7 @@ p {
   pointer-events: none;
   display: flex;
   justify-content: space-between;
-  color: #999;
+  color: #a5a0b7;
   font-size: 9px;
 }
 .toolbar {
@@ -380,10 +380,10 @@ p {
   display: flex;
   align-items: center;
   gap: 3px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid #353440;
   border-radius: 14px;
   padding: 6px;
-  background: #fff;
+  background: #22222b;
   height: 54px;
   box-shadow: 0 4px 18px #0002;
   z-index: 12;
@@ -398,7 +398,7 @@ p {
   background: transparent;
   border: 0;
   font-size: 20px;
-  color: #444;
+  color: #c7c3d4;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -406,17 +406,17 @@ p {
   flex-shrink: 0;
 }
 .toolbar button:hover {
-  background: #f4f4f4;
+  background: #302d3e;
 }
 .toolbar .tool.active {
-  background: #0d99ff;
+  background: #a78bfa;
   color: white;
 }
 .tool-separator {
   height: 28px;
   width: 1px;
   flex-shrink: 0;
-  background: #e5e5e5;
+  background: #18181f;
   margin: 0 3px;
 }
 .shape-control,
@@ -430,9 +430,9 @@ p {
   top: auto;
   left: -30px;
   min-width: 240px;
-  background: #fff;
-  color: #222;
-  border: 1px solid #ddd;
+  background: #22222b;
+  color: #e9e7f0;
+  border: 1px solid #444150;
   border-radius: 10px;
   padding: 6px;
   box-shadow: 0 6px 24px #0002;
@@ -453,7 +453,7 @@ p {
   flex: 1;
 }
 .tool-popup kbd {
-  color: #999;
+  color: #a5a0b7;
   font: 10px inherit;
   margin-left: auto;
 }
@@ -467,7 +467,7 @@ p {
   min-width: 190px;
 }
 footer {
-  background: #fff;
+  background: #22222b;
   border-top: 1px solid var(--border);
   padding: 5px 10px;
   min-height: 34px;
@@ -475,7 +475,7 @@ footer {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  color: #888;
+  color: #a5a0b7;
   font-size: 9px;
 }
 .view-controls {
@@ -497,24 +497,24 @@ footer {
   margin: 0;
 }
 .stage .handle {
-  fill: #fff;
-  stroke: #0d99ff;
+  fill: #22222b;
+  stroke: #a78bfa;
 }
 .stage .handle.selected {
-  fill: #0d99ff;
-  stroke: #fff;
+  fill: #a78bfa;
+  stroke: #22222b;
 }
 .stage .selection-outline,
 .stage .selected-edge,
 .stage .resize-handle {
-  stroke: #0d99ff;
+  stroke: #a78bfa;
 }
 .stage .marquee-box {
-  fill: #0d99ff18;
-  stroke: #0d99ff;
+  fill: #a78bfa20;
+  stroke: #a78bfa;
 }
 .stage .edge-arrow {
-  fill: #0d99ff;
+  fill: #a78bfa;
 }
 .shape-hit {
   fill: transparent;
@@ -540,7 +540,7 @@ footer {
   overflow-y: auto;
   overflow-x: hidden;
   padding: 0;
-  background: #fff;
+  background: #22222b;
 }
 .inspector-top {
   display: flex;
@@ -551,7 +551,7 @@ footer {
   font-size: 12px;
 }
 .inspector-top b {
-  background: #f5f5f5;
+  background: #2a2935;
   border-radius: 5px;
   padding: 5px 7px;
 }
@@ -602,7 +602,7 @@ footer {
 }
 .right label {
   font-size: 10px;
-  color: #888;
+  color: #a5a0b7;
   margin: 0 0 8px;
   display: block;
 }
@@ -611,8 +611,8 @@ footer {
   width: 100%;
   height: 31px;
   padding: 6px 8px;
-  background: #f5f5f5;
-  color: #222;
+  background: #2a2935;
+  color: #e9e7f0;
   border: 1px solid transparent;
   border-radius: 6px;
   font-size: 11px;
@@ -620,7 +620,7 @@ footer {
 }
 .right input:focus,
 .right select:focus {
-  outline: 1px solid #0d99ff;
+  outline: 1px solid #a78bfa;
 }
 .right input:disabled,
 .right select:disabled {
@@ -634,7 +634,7 @@ footer {
 }
 .right .sub-label {
   margin: 10px 0 6px;
-  color: #999;
+  color: #a5a0b7;
 }
 .alignment {
   display: flex;
@@ -643,7 +643,7 @@ footer {
 }
 .alignment button {
   padding: 5px 8px;
-  background: #f5f5f5;
+  background: #2a2935;
   font-size: 18px;
   flex: 1;
 }
@@ -657,7 +657,7 @@ footer {
 }
 .rotation-row button {
   margin-bottom: 8px;
-  background: #f5f5f5;
+  background: #2a2935;
   height: 31px;
 }
 .right .ratio {
@@ -665,7 +665,7 @@ footer {
   align-items: center;
   gap: 5px;
   font-size: 10px;
-  color: #777;
+  color: #a5a0b7;
 }
 .ratio input {
   margin: 0;
@@ -674,7 +674,7 @@ footer {
   display: flex;
   align-items: center;
   gap: 7px;
-  background: #f5f5f5;
+  background: #2a2935;
   border: 0;
   border-radius: 6px;
   padding: 5px;
@@ -694,7 +694,7 @@ footer {
     11px Inter,
     'Segoe UI',
     sans-serif;
-  color: #444;
+  color: #c7c3d4;
   flex: 1;
 }
 .right .color label {
@@ -720,9 +720,9 @@ footer {
   margin-top: auto;
 }
 .export-section .wide {
-  background: #f5f5f5;
-  color: #333;
-  border: 1px solid #ddd;
+  background: #2a2935;
+  color: #c7c3d4;
+  border: 1px solid #444150;
   font-size: 11px;
   padding: 9px;
   margin-top: 4px;
@@ -739,8 +739,8 @@ footer {
 .code-panel {
   grid-row: 1;
   background: #202124;
-  border-left: 1px solid #333;
-  color: #ddd;
+  border-left: 1px solid #c7c3d4;
+  color: #444150;
 }
 .code-panel button,
 .code-panel select {
@@ -748,19 +748,19 @@ footer {
   background: #292b30;
 }
 .code-panel .primary {
-  background: #0d99ff;
+  background: #a78bfa;
   color: white;
 }
 .code-panel h2 {
-  color: #ddd;
+  color: #444150;
 }
 .code-panel label {
   color: #aaa;
 }
 dialog {
-  background: #fff;
-  color: #222;
-  border: 1px solid #ddd;
+  background: #22222b;
+  color: #e9e7f0;
+  border: 1px solid #444150;
   border-radius: 12px;
   box-shadow: 0 12px 60px #0003;
   max-height: 90dvh;
@@ -779,9 +779,9 @@ dialog h2 {
 }
 dialog input,
 dialog select {
-  background: #f5f5f5;
-  color: #222;
-  border-color: #ddd;
+  background: #2a2935;
+  color: #e9e7f0;
+  border-color: #444150;
 }
 .shortcut-list {
   display: grid;
@@ -791,15 +791,15 @@ dialog select {
 }
 .shortcut-list dd {
   margin: 0;
-  color: #555;
+  color: #b6b1c6;
 }
 .shortcut-list dt {
-  color: #888;
+  color: #a5a0b7;
 }
 #toast {
   background: #252525;
-  color: #fff;
-  border-color: #444;
+  color: #e9e7f0;
+  border-color: #c7c3d4;
   border-radius: 8px;
 }
 body.restoring main {
@@ -897,12 +897,12 @@ body.restoring main {
 
 button.primary,
 button.primary:hover {
-  background: #0d99ff;
-  color: #fff;
-  border-color: #0d99ff;
+  background: #a78bfa;
+  color: #22222b;
+  border-color: #a78bfa;
 }
 #zoom {
-  color: #444;
+  color: #c7c3d4;
   font-size: 11px;
 }
 .toolbar #shapeTool {
@@ -914,4 +914,52 @@ button.primary:hover {
 }
 .toolbar #shapeTool span {
   font-size: 11px;
+}
+
+/* Prism: graphite surfaces and a violet accent, independent of canvas colors. */
+.primary,
+.primary:hover,
+button.primary,
+button.primary:hover,
+.toolbar button.active {
+  color: #171320;
+}
+.brand-symbol {
+  color: #c4b5fd;
+}
+.brand {
+  letter-spacing: 0.025em;
+}
+.toolbar {
+  border-top-color: #615078;
+  box-shadow: 0 12px 32px #0005;
+}
+footer {
+  flex-wrap: wrap;
+}
+footer #modeStatus {
+  flex: 1 1 120px;
+}
+.view-controls {
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+#gridSettings {
+  color: #ddd0ff;
+  border: 1px solid #615078;
+  white-space: nowrap;
+}
+dialog {
+  background: #22222b;
+  color: #e9e7f0;
+  border: 1px solid #444150;
+}
+dialog input,
+dialog select {
+  background: #2a2935;
+  color: #e9e7f0;
+  border-color: #444150;
+}
+.stage.map-light {
+  background: #e4e1e9;
 }
