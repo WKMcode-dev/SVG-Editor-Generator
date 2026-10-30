@@ -10,6 +10,9 @@ const path = require('node:path');
     outfile: path.join(root, '.test-build/controller.js'),
   });
   for (const [file, entry] of Object.entries({
+    'boolean-groups.cjs': 'src/domain/boolean-groups.ts',
+    'svg-parser.cjs': 'src/application/svg-parser.ts',
+    'alignment.cjs': 'src/domain/alignment.ts',
     'geometry.cjs': 'src/domain/geometry.ts',
     'code-repair.cjs': 'src/domain/code-repair.ts',
     'project-storage.cjs': 'src/infrastructure/project-storage.ts',

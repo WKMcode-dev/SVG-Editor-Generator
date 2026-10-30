@@ -1,4 +1,4 @@
-# SVG Editor Generator 2.0.0
+# SVG Editor Generator 2.1.0
 
 Editor visual de SVG em **TypeScript + Tauri 2/Rust**, com pontos arrastáveis, cantos arredondados, operações booleanas e edição SVG/HTML/CSS no Monaco.
 
@@ -15,7 +15,7 @@ As formas, a grade, o fundo, o HTML/CSS e as preferências do Monaco têm salvam
 
 ## Espaço de trabalho 2.0
 
-Canvas livre, sem moldura ou prancheta fixa de 800 × 500. O SVG é exportado com viewBox calculado pelos limites das camadas visíveis, incluindo a borda. Os painéis usam uma paleta clara e neutra e a seleção usa azul; novas formas têm preenchimento e contorno cinza. As cores de projetos existentes são preservadas.
+Canvas livre, sem moldura ou prancheta fixa de 800 × 500. O SVG é exportado com viewBox calculado pelos limites das camadas visíveis, incluindo a borda. Os painéis usam o tema Prism, com grafite e violeta; novas formas têm preenchimento e contorno cinza. As cores de projetos existentes são preservadas.
 
 A barra flutuante fica centralizada na parte inferior do canvas. O menu de formas oferece retângulo, elipse, linha, seta, polígono e estrela. Escolha uma ferramenta e arraste; Shift restringe retângulos e elipses a quadrados e círculos, e linhas a ângulos de 45°. Os presets ficam na aba Recursos, com formas prontas e presets pessoais salvos neste navegador.
 
@@ -106,3 +106,9 @@ O botão **⚙ Grade** no rodapé ajusta célula base, estilo, origem e passos d
 ### Touchpad
 
 Use pinça ou Ctrl/Command+rolagem para zoom. Deslizar dois dedos em qualquer direção move o canvas sem alterar o zoom. Painéis laterais mantêm sua rolagem normal.
+
+## Operações booleanas editáveis
+
+União, Subtração, Interseção, Exclusão e Achatar criam um grupo recolhível nas camadas. Expanda pela seta e selecione uma forma original para mover ou editar seus pontos; o resultado recalcula em tempo real. O contorno rosa mostra a forma selecionada, inclusive o recorte da subtração. Selecione o nome do grupo para mover, redimensionar ou girar todas as formas. Ctrl+Shift+G desfaz o grupo e recupera as fontes. A estrutura é preservada no projeto JSON, no autosave, nos presets e nos metadados do SVG; outros visualizadores desenham somente o resultado. Grupos vazios continuam editáveis pelas camadas. O limite de 100 camadas inclui grupos e fontes.
+
+As guias rosas consideram vértices, meios de segmentos e centros das formas nos eixos X/Y. O encaixe inteligente usa a posição anterior ao ajuste na grade e uma tolerância de 6 pixels de tela; Alt ignora as guias. Ctrl/Command+rolagem amplia suavemente no cursor, com variação limitada por evento; rolagem simples move o canvas.

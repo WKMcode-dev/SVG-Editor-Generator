@@ -1,3 +1,4 @@
+import { booleanSources, validBooleanGraph } from './boolean-graph';
 import polygonClipping from 'polygon-clipping';
 import type {
   Point,
@@ -156,6 +157,7 @@ function ringRadii(s: Shape, ring: RingReference) {
   });
 }
 function shapePath(s: Shape): string {
+  if (s.booleanEmpty) return '';
   if (s.type === 'ellipse') {
     const b = bounds(s),
       p = s.points;
@@ -240,7 +242,7 @@ function polygonize(s: Shape): void {
   s.type = 'custom';
 }
 function exportBounds(shapes: Shape[]) {
-  const visible = shapes.filter((s) => !s.hidden);
+  const visible = shapes.filter((s) => !s.booleanParent && !s.hidden && !s.booleanEmpty);
   if (!visible.length) return { x: 0, y: 0, width: 1, height: 1 };
   const boxes = visible.map((s) => {
     const b = bounds(s),
@@ -376,39 +378,44 @@ function combine(op: BooleanOperation, shapes: Shape[]) {
 }
 function svg(shapes: Shape[]) {
   const box = exportBounds(shapes);
-  const elements = shapes.map((s) => {
-    const meta = `id="${escape(s.id)}" aria-label="${escape(s.name)}" data-editor-type="${s.type}" data-locked="${!!s.locked}" data-hidden="${!!s.hidden}" data-shadow="${!!s.shadow}"${s.group ? ` data-group="${escape(JSON.stringify(s.group))}"` : ''}`;
-    const vertices = `data-vertices="${escape(JSON.stringify(s.polygons || [[s.points]]))}"`;
-    if (s.media)
-      return `    <g ${meta} ${vertices} data-media="${escape(JSON.stringify({ mime: s.media.mime, flipX: s.media.flipX, flipY: s.media.flipY }))}" opacity="${s.opacity / 100}"${s.shadow ? ' filter="url(#editor-shadow)"' : ''}${s.hidden ? ' display="none"' : ''}>${mediaMarkup(s)}</g>`;
-    return [
-      '    <path',
-      `        ${meta}`,
-      `        fill="${s.noFill ? 'none' : s.fill}"`,
-      `        stroke="${s.stroke}"`,
-      `        stroke-width="${s.strokeWidth}"`,
-      `        stroke-linejoin="${s.join}"`,
-      '        stroke-miterlimit="20"',
-      '        fill-rule="evenodd"',
-      `        opacity="${s.opacity / 100}"`,
-      ...(s.shadow ? ['        filter="url(#editor-shadow)"'] : []),
-      ...(s.hidden ? ['        display="none"'] : []),
-      ...(['ellipse', 'line', 'arrow'].includes(s.type) || s.radius || s.cornerRadii
-        ? [
-            `        ${vertices}`,
-            `        data-corner-radius="${s.radius || 0}"`,
-            `        data-radius-unit="${s.radiusUnit || 'px'}"`,
-            ...(s.cornerRadii
-              ? [`        data-corner-radii="${escape(JSON.stringify(s.cornerRadii))}"`]
-              : []),
-          ]
-        : []),
-      '        d="',
-      ...(shapePath(s).match(/[MLCAZ][^MLCAZ]*/g) || []).map((c) => '            ' + c.trim()),
-      '        "',
-      '    />',
-    ].join('\n');
-  });
+  const elements = shapes
+    .filter((s) => !s.booleanParent)
+    .map((s) => {
+      const meta = `id="${escape(s.id)}" aria-label="${escape(s.name)}" data-editor-type="${s.type}" data-locked="${!!s.locked}" data-hidden="${!!s.hidden}" data-shadow="${!!s.shadow}"${s.group ? ` data-group="${escape(JSON.stringify(s.group))}"` : ''}`;
+      const booleanMeta = s.boolean
+        ? ` data-boolean="${escape(JSON.stringify({ ...s.boolean, empty: !!s.booleanEmpty, sources: booleanSources(shapes, s.id) }))}"`
+        : '';
+      const vertices = `${booleanMeta} data-vertices="${escape(JSON.stringify(s.polygons || [[s.points]]))}"`;
+      if (s.media)
+        return `    <g ${meta} ${vertices} data-media="${escape(JSON.stringify({ mime: s.media.mime, flipX: s.media.flipX, flipY: s.media.flipY }))}" opacity="${s.opacity / 100}"${s.shadow ? ' filter="url(#editor-shadow)"' : ''}${s.hidden ? ' display="none"' : ''}>${mediaMarkup(s)}</g>`;
+      return [
+        '    <path',
+        `        ${meta}`,
+        `        fill="${s.noFill ? 'none' : s.fill}"`,
+        `        stroke="${s.stroke}"`,
+        `        stroke-width="${s.strokeWidth}"`,
+        `        stroke-linejoin="${s.join}"`,
+        '        stroke-miterlimit="20"',
+        '        fill-rule="evenodd"',
+        `        opacity="${s.opacity / 100}"`,
+        ...(s.shadow ? ['        filter="url(#editor-shadow)"'] : []),
+        ...(s.hidden ? ['        display="none"'] : []),
+        ...(['ellipse', 'line', 'arrow'].includes(s.type) || s.boolean || s.radius || s.cornerRadii
+          ? [
+              `        ${vertices}`,
+              `        data-corner-radius="${s.radius || 0}"`,
+              `        data-radius-unit="${s.radiusUnit || 'px'}"`,
+              ...(s.cornerRadii
+                ? [`        data-corner-radii="${escape(JSON.stringify(s.cornerRadii))}"`]
+                : []),
+            ]
+          : []),
+        '        d="',
+        ...(shapePath(s).match(/[MLCAZ][^MLCAZ]*/g) || []).map((c) => '            ' + c.trim()),
+        '        "',
+        '    />',
+      ].join('\n');
+    });
   return [
     '<svg',
     '    xmlns="http://www.w3.org/2000/svg"',
@@ -460,6 +467,7 @@ function valid(d: unknown): d is Project {
     Array.isArray(candidate.shapes) &&
     candidate.shapes.length <= 100 &&
     new Set(candidate.shapes.map((s) => s?.id)).size === candidate.shapes.length &&
+    validBooleanGraph(candidate.shapes) &&
     candidate.shapes.every(
       (s) =>
         s &&

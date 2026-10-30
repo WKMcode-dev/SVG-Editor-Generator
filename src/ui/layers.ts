@@ -136,18 +136,56 @@ export function createLayers(
         .replace(/[\u0300-\u036f]/g, '')
         .toLocaleLowerCase()
         .includes(query);
+    function appendBoolean(shape: Shape, child = false, depth = 0) {
+      if (!match(shape) && !shapes.some((s) => s.booleanParent === shape.id && match(s))) return;
+      const node = row(shape.id, false),
+        isGroup = !!shape.boolean;
+      update(
+        node,
+        [shape],
+        shape.name,
+        isGroup ? (collapsed.has(shape.id) ? '›' : '⌄') : '◇',
+        child,
+      );
+      node.style.paddingLeft = depth ? `${depth * 12}px` : '';
+      node.classList.toggle('boolean-group', isGroup);
+      if (isGroup) {
+        node.querySelector<HTMLElement>('.layer-glyph')!.onclick = (e) => {
+          e.stopPropagation();
+          collapsed.has(shape.id) ? collapsed.delete(shape.id) : collapsed.add(shape.id);
+          render();
+        };
+        node
+          .querySelector('.layer')!
+          .setAttribute('aria-expanded', String(!collapsed.has(shape.id)));
+      }
+      desired.push(node);
+      if (isGroup && (!collapsed.has(shape.id) || query))
+        shapes
+          .filter((s) => s.booleanParent === shape.id)
+          .forEach((s) => appendBoolean(s, true, depth + 1));
+    }
     for (const shape of shapes) {
+      if (shape.booleanParent) continue;
+      if (shape.boolean && !shape.group) {
+        appendBoolean(shape);
+        continue;
+      }
       if (shape.group) {
         const key = 'group:' + shape.group.id;
         if (seen.has(key)) continue;
         seen.add(key);
-        const children = shapes.filter((s) => s.group?.id === shape.group!.id);
+        const children = shapes.filter((s) => !s.booleanParent && s.group?.id === shape.group!.id);
         if (!children.some(match)) continue;
         const header = row(key, true);
         update(header, children, shape.group.name, collapsed.has(key) ? '›' : '⌄');
         desired.push(header);
         if (collapsed.has(key) && !query) continue;
         for (const child of children.filter(match)) {
+          if (child.boolean) {
+            appendBoolean(child, true, 1);
+            continue;
+          }
           const node = row(child.id, false);
           update(node, [child], child.name, '◇', true);
           desired.push(node);

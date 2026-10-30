@@ -1,6 +1,6 @@
 {
   "name": "svg-editor-generator",
-  "version": "2.0.4",
+  "version": "2.1.0",
   "description": "Editor visual de SVG para Windows",
   "author": "SVG Editor Generator",
   "license": "MIT",
@@ -14,7 +14,7 @@
     "build:web": "npm run typecheck && node scripts/build.cjs",
     "build:editor": "npm run build:web",
     "build:tests": "node scripts/build-tests.cjs",
-    "test": "npm run typecheck && npm run build:tests && node --test tests/geometry.cjs tests/editor.cjs tests/storage.cjs tests/interaction.cjs",
+    "test": "npm run typecheck && npm run build:tests && node --test tests/geometry.cjs tests/editor.cjs tests/storage.cjs tests/interaction.cjs tests/live-boolean.cjs",
     "test:desktop": "npm run build:tests && node --test tests/desktop-bridge.cjs",
     "test:ui": "node scripts/test-ui.cjs",
     "dev:web": "npm run build:web && node scripts/serve.cjs",

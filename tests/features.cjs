@@ -217,8 +217,9 @@ const fixture = (name, x, y, w, h) => ({
     assert.equal(await area(), 75000);
     await page.reload();
     await page.waitForSelector('.shape');
+    await page.locator('.layer').filter({ hasText: 'Recorte' }).click();
     await page.click('#editPoints');
-    await page.waitForSelector('.shape');
+    await page.waitForSelector('.handle');
     assert.equal(await area(), 75000);
     assert.equal((await contours()).length, 2);
     const outer = (await contours())[0];

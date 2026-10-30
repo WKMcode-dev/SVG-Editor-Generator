@@ -39,7 +39,7 @@ export function parseCode(text: string, shapes: Shape[] = []) {
     (n) => !['title', 'desc', 'defs'].includes(n.localName),
   );
   if (children.length > 100) throw Error('Limite de 100 formas.');
-  return children.map((node, i) => {
+  const parsed = children.map((node, i) => {
     if (!['path', 'polygon', 'rect', 'ellipse', 'line', 'image', 'g'].includes(node.localName))
       throw Error(
         'Use path, polygon ou rect. Grupos, curvas e outros elementos ainda não são suportados.',
@@ -90,6 +90,9 @@ export function parseCode(text: string, shapes: Shape[] = []) {
           (content.getAttribute('href') || '').match(/^data:([^;]+)/)?.[1] ||
           '',
       };
+    } else if (node.hasAttribute('data-boolean')) {
+      polygons = JSON.parse(node.getAttribute('data-vertices') || 'null');
+      pts = polygons![0][0];
     } else if (node.localName === 'ellipse') {
       const cx = Number(node.getAttribute('cx')),
         cy = Number(node.getAttribute('cy')),
@@ -214,4 +217,15 @@ export function parseCode(text: string, shapes: Shape[] = []) {
     s.join = (attr('stroke-linejoin') || 'miter') as Shape['join'];
     return s;
   });
+  children.forEach((node, i) => {
+    if (!node.hasAttribute('data-boolean')) return;
+    const data = JSON.parse(node.getAttribute('data-boolean')!);
+    if (!Array.isArray(data.sources) || data.sources.length > 100)
+      throw Error('Grupo booleano inválido.');
+    parsed[i].boolean = { operation: data.operation, operands: data.operands };
+    parsed[i].booleanEmpty = data.empty === true;
+    parsed.push(...data.sources.map((s: Shape) => G.normalize(s)));
+  });
+  if (!G.valid({ version: 1, shapes: parsed })) throw Error('Formas ou grupo booleano inválidos.');
+  return parsed;
 }

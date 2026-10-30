@@ -1,3 +1,11 @@
+import { alignDelta, anchors } from '../domain/alignment';
+import {
+  createBoolean,
+  createBooleanSynchronizer,
+  descendants,
+  effectiveHidden,
+  effectiveLocked,
+} from '../domain/boolean-groups';
 import { installPresets } from './presets';
 import { installCanvasGestures } from '../ui/canvas-gestures';
 import { createLayers } from '../ui/layers';
@@ -199,7 +207,7 @@ function moveParts(keys: Set<string>, delta: Point, list: Shape[] = shapes) {
   const touched = new Set<Shape>();
   keys.forEach((key) => {
     const ref = pointRef(key, list);
-    if (ref && !ref.shape.locked && !ref.shape.hidden) {
+    if (ref && !effectiveLocked(shapes, ref.shape) && !effectiveHidden(shapes, ref.shape)) {
       ref.ring.points[ref.i] = ref.point.map((n, axis) => G.round(n + delta[axis])) as Point;
       touched.add(ref.shape);
     }
@@ -217,6 +225,10 @@ const layerView = createLayers($('layers'), $('layerFilter'), {
     editingPoints = false;
     if (!multiple) clearSelection();
     ids.forEach((id) => selectShape(id, true));
+    for (const id of [...selectedIds]) {
+      if (descendants(shapes, id).some((s) => selectedIds.has(s.id))) selectedIds.delete(id);
+    }
+    if (!selectedIds.has(selected!)) selected = [...selectedIds].at(-1) || null;
     render();
   },
   update: (ids, patch) =>
@@ -232,7 +244,16 @@ const layerView = createLayers($('layers'), $('layerFilter'), {
       shapes.filter((s) => s.group?.id === id).forEach((s) => (s.group!.name = name));
     }),
 });
-const { render, camera, syncGrid } = createRenderer({
+const syncBooleanGroups = createBooleanSynchronizer();
+function render() {
+  syncBooleanGroups(shapes);
+  renderEditor();
+}
+const {
+  render: renderEditor,
+  camera,
+  syncGrid,
+} = createRenderer({
   renderLayers: () => layerView.render(),
   get editingPoints() {
     return editingPoints;
@@ -341,6 +362,8 @@ function selectShape(id: string, multiple = false) {
     if (selectedIds.has(id)) selectedIds.delete(id);
     else selectedIds.add(id);
   } else selectedIds = new Set([id]);
+  for (const key of [...selectedIds])
+    if (descendants(shapes, key).some((s) => selectedIds.has(s.id))) selectedIds.delete(key);
   selected = selectedIds.has(id) ? id : [...selectedIds].at(-1) || null;
   if (selected) lastSelectedId = selected;
   clearParts();
@@ -368,6 +391,7 @@ function persist() {
   }
 }
 function commit(before: string) {
+  syncBooleanGroups(shapes);
   if (!G.valid(project())) {
     const saved = JSON.parse(before);
     shapes = saved.shapes.map(G.normalize);
@@ -438,28 +462,23 @@ function local(e: { clientX: number; clientY: number }) {
   return [(e.clientX - r.left - view.x) / view.z, (e.clientY - r.top - view.y) / view.z] as Point;
 }
 // Guide tolerance stays constant on screen, independent of canvas zoom.
-function smartDelta(moving: Point[], targets: Point[], raw: Point, alt: boolean): Point {
+function smartDelta(
+  moving: Point[],
+  targets: Point[],
+  raw: Point,
+  alt: boolean,
+  fallback: Point,
+): Point {
   const overlay = document.getElementById('alignmentGuides')!;
   overlay.replaceChildren();
-  if (alt || !moving.length) return raw;
-  const delta = [...raw] as Point;
-  for (const axis of [0, 1]) {
-    let best = 6 / view.z;
-    let match: { source: Point; target: Point; correction: number } | undefined;
-    for (const source of moving)
-      for (const target of targets) {
-        const correction = target[axis] - source[axis] - raw[axis];
-        if (Math.abs(correction) < best) {
-          best = Math.abs(correction);
-          match = { source, target, correction };
-        }
-      }
-    if (!match) continue;
-    delta[axis] = raw[axis] + match.correction;
-    const coordinate = match.target[axis];
-    const other = 1 - axis;
-    const a = Math.min(match.source[other] + raw[other], match.target[other]) - 18 / view.z;
-    const b = Math.max(match.source[other] + raw[other], match.target[other]) + 18 / view.z;
+  $('canvas').classList.remove('is-aligning');
+  if (alt) return fallback;
+  const { delta, guides } = alignDelta(moving, targets, raw, fallback, view.z);
+  for (const { axis, source, target } of guides) {
+    const other = 1 - axis,
+      coordinate = target[axis];
+    const a = Math.min(source[other] + delta[other], target[other]) - 18 / view.z;
+    const b = Math.max(source[other] + delta[other], target[other]) + 18 / view.z;
     overlay.append(
       el('line', {
         x1: axis === 0 ? coordinate : a,
@@ -469,29 +488,81 @@ function smartDelta(moving: Point[], targets: Point[], raw: Point, alt: boolean)
         stroke: '#e548a6',
         'stroke-width': 1 / view.z,
         'stroke-dasharray': `${4 / view.z} ${3 / view.z}`,
+        'data-alignment-axis': axis,
       }),
     );
-    overlay.append(
-      el('circle', {
-        cx: match.target[0],
-        cy: match.target[1],
-        r: 4 / view.z,
-        fill: '#e548a6',
-        stroke: '#fff',
-        'stroke-width': 1 / view.z,
-      }),
-    );
+    for (const point of [target, [source[0] + delta[0], source[1] + delta[1]]])
+      overlay.append(
+        el('circle', {
+          cx: point[0],
+          cy: point[1],
+          r: 4 / view.z,
+          fill: '#e548a6',
+          stroke: '#fff',
+          'stroke-width': 1 / view.z,
+        }),
+      );
   }
+  $('canvas').classList.toggle('is-aligning', guides.length > 0);
   return delta;
 }
+function movingAnchors(keys: string[], saved: Shape[]): Point[] {
+  const points = keys.map((key) => pointRef(key, saved)!.point);
+  for (const key of selectedSegments) {
+    const ref = pointRef(key, saved);
+    if (ref) {
+      const next = ref.ring.points[(ref.i + 1) % ref.ring.points.length];
+      points.push([(ref.point[0] + next[0]) / 2, (ref.point[1] + next[1]) / 2]);
+    }
+  }
+  return anchors(points);
+}
 function alignmentTargets(excluded: Set<string>, parts = false): Point[] {
-  return shapes
-    .filter((s) => !s.hidden && (parts || !excluded.has(s.id)))
-    .flatMap((s) =>
-      G.rings(s).flatMap((r) =>
-        r.points.filter((_, i) => !parts || !excluded.has(partKey(s.id, r.p, r.r, i))),
-      ),
-    );
+  const result: Point[] = [];
+  const excludedShapes = new Set(
+    parts ? [] : [...excluded].flatMap((id) => [id, ...descendants(shapes, id).map((s) => s.id)]),
+  );
+  const derived = new Set<string>();
+  for (const key of excluded) {
+    let shape = shapes.find((s) => s.id === (parts ? JSON.parse(key)[0] : key));
+    while (shape?.booleanParent) {
+      derived.add(shape.booleanParent);
+      shape = shapes.find((s) => s.id === shape!.booleanParent);
+    }
+  }
+  for (const s of shapes) {
+    if (
+      derived.has(s.id) ||
+      effectiveHidden(shapes, s) ||
+      (!parts && excludedShapes.has(s.id)) ||
+      (s.booleanParent && !selectedIds.has(s.id) && s.booleanParent !== current()?.booleanParent)
+    )
+      continue;
+    const all: Point[] = [];
+    let containsMoving = false;
+    for (const ring of G.rings(s)) {
+      ring.points.forEach((point, i) => {
+        const next = (i + 1) % ring.points.length;
+        const moving = parts && excluded.has(partKey(s.id, ring.p, ring.r, i));
+        if (moving) {
+          containsMoving = true;
+          return;
+        }
+        result.push(point);
+        all.push(point);
+        if (
+          ((s.type !== 'line' && s.type !== 'arrow') || i < ring.points.length - 1) &&
+          (!parts || !excluded.has(partKey(s.id, ring.p, ring.r, next)))
+        )
+          result.push([
+            (point[0] + ring.points[next][0]) / 2,
+            (point[1] + ring.points[next][1]) / 2,
+          ]);
+      });
+    }
+    if (!containsMoving) result.push(...anchors(all).slice(all.length));
+  }
+  return result;
 }
 function snap(n: number, axis: number) {
   const step = axis ? grid.stepY : grid.stepX,
@@ -654,12 +725,22 @@ $('remove').onclick = () =>
 $('duplicate').onclick = () =>
   change(() => {
     if (!selectedShapes().length || shapes.length + selectedShapes().length > 100) return;
+    const chosen = new Set(
+      selectedShapes().flatMap((s) => [s.id, ...descendants(shapes, s.id).map((c) => c.id)]),
+    );
+    if (shapes.length + chosen.size > 100) return toast('Limite de 100 camadas.');
+    const ids = new Map([...chosen].map((id) => [id, crypto.randomUUID()]));
     const copies = shapes
-      .filter((s) => selectedIds.has(s.id) && !s.locked && !s.hidden)
+      .filter((s) => chosen.has(s.id))
       .map((item) => {
         const s = G.normalize(structuredClone(item));
-        s.id = crypto.randomUUID();
+        s.id = ids.get(item.id)!;
         s.name = (s.name + ' cópia').slice(0, 80);
+        if (s.boolean) s.boolean.operands = s.boolean.operands.map((id) => ids.get(id)!);
+        if (s.booleanParent) {
+          if (ids.has(s.booleanParent)) s.booleanParent = ids.get(s.booleanParent)!;
+          else delete s.booleanParent;
+        }
         G.mapShape(s, (p) => p.map((n) => n + 24) as Point);
         return s;
       });
@@ -671,8 +752,9 @@ $('duplicate').onclick = () =>
       }
     });
     shapes.push(...copies);
-    selectShape(copies.at(-1)!.id);
-    selectedIds = new Set(copies.map((s) => s.id));
+    const roots = copies.filter((s) => !s.booleanParent);
+    selectShape(roots.at(-1)!.id);
+    selectedIds = new Set(roots.map((s) => s.id));
   });
 function deleteSelection(parts = true) {
   if (drag) return;
@@ -708,7 +790,13 @@ function deleteSelection(parts = true) {
     }
     // In point mode, an empty point selection must not delete the whole shape.
     if (parts && editingPoints) return;
-    shapes = shapes.filter((s) => !selectedIds.has(s.id) || s.locked || s.hidden);
+    const removed = new Set(
+      selectedShapes().flatMap((s) => [s.id, ...descendants(shapes, s.id).map((c) => c.id)]),
+    );
+    shapes = shapes.filter((s) => !removed.has(s.id));
+    shapes.forEach((s) => {
+      if (s.boolean) s.boolean.operands = s.boolean.operands.filter((id) => !removed.has(id));
+    });
     clearSelection();
   });
 }
@@ -745,7 +833,10 @@ const drawTools: DrawTool[] = [
   'diamond',
   'star',
 ];
-const selectedShapes = () => shapes.filter((s) => selectedIds.has(s.id) && !s.locked && !s.hidden);
+const selectedShapes = () =>
+  shapes.filter(
+    (s) => selectedIds.has(s.id) && !effectiveLocked(shapes, s) && !effectiveHidden(shapes, s),
+  );
 (['shapeX', 'shapeY'] as const).forEach((id, axis) => {
   $(id).onchange = () => {
     const value = Number($(id).value),
@@ -809,6 +900,10 @@ $('closeShortcuts').onclick = () => $('shortcutsDialog').close();
 function enterPointMode() {
   const s = current();
   if (!s || s.locked || s.hidden || s.media) return;
+  if (s.boolean) {
+    toast('Expanda o grupo nas camadas e selecione uma forma para editar seus pontos.');
+    return;
+  }
   editingPoints = true;
   mode = 'select';
   $('pointSection').open = true;
@@ -948,9 +1043,41 @@ $('groupSelection').onclick = () => {
     selectedShapes().forEach((s) => (s.group = { ...group }));
   });
 };
-$('ungroupSelection').onclick = () => change(() => selectedShapes().forEach((s) => delete s.group));
+$('ungroupSelection').onclick = () =>
+  change(() => {
+    const nextIds = new Set<string>();
+    for (const shape of selectedShapes()) {
+      if (!shape.boolean) {
+        delete shape.group;
+        nextIds.add(shape.id);
+        continue;
+      }
+      const children = shapes.filter((s) => s.booleanParent === shape.id);
+      for (const child of children) {
+        if (shape.booleanParent) child.booleanParent = shape.booleanParent;
+        else delete child.booleanParent;
+        nextIds.add(child.id);
+      }
+      if (shape.booleanParent) {
+        const parent = shapes.find((s) => s.id === shape.booleanParent)!;
+        parent.boolean!.operands = parent.boolean!.operands.flatMap((id) =>
+          id === shape.id ? children.map((s) => s.id) : [id],
+        );
+      }
+      shapes = shapes.filter((s) => s.id !== shape.id);
+    }
+    selectedIds = nextIds;
+    selected = [...nextIds].at(-1) || null;
+    clearParts();
+  });
 installPresets({
-  getSelected: selectedShapes,
+  getSelected: () => [
+    ...new Map(
+      selectedShapes()
+        .flatMap((s) => [s, ...descendants(shapes, s.id)])
+        .map((s) => [s.id, s]),
+    ).values(),
+  ],
   notify: toast,
   center: () => {
     const r = $('canvas').getBoundingClientRect();
@@ -960,8 +1087,8 @@ installPresets({
     if (shapes.length + copies.length > 100) return toast('Limite de 100 camadas.');
     change(() => {
       shapes.push(...copies);
-      selectShape(copies[0].id);
-      selectedIds = new Set(copies.map((s) => s.id));
+      selectShape(copies.find((s) => !s.booleanParent)!.id);
+      selectedIds = new Set(copies.filter((s) => !s.booleanParent).map((s) => s.id));
     });
   },
 });
@@ -1077,7 +1204,7 @@ $('canvas').onpointerdown = (e) => {
     }
     const target = shapes.find((s) => s.id === id)!,
       edge = nearestRing(target, p);
-    if (target.locked || target.hidden) return;
+    if (effectiveLocked(shapes, target) || effectiveHidden(shapes, target)) return;
     if (
       editingPoints &&
       !target.media &&
@@ -1199,7 +1326,7 @@ function marqueeSelection(p: Point) {
   );
   if (!editingPoints) {
     const ids = shapes
-      .filter((s) => !s.locked && !s.hidden)
+      .filter((s) => !s.booleanParent && !s.locked && !s.hidden)
       .filter((s) => {
         const b = G.bounds(s);
         return b.x <= x + width && b.y <= y + height && b.x + b.width >= x && b.y + b.height >= y;
@@ -1307,10 +1434,11 @@ $('canvas').onpointermove = (e) => {
     const start = drag.start,
       anchor = pointRef(drag.anchor, drag.shapes)!.point,
       delta = smartDelta(
-        drag.keys.map((key) => pointRef(key, drag!.kind === 'parts' ? drag!.shapes : [])!.point),
+        movingAnchors(drag.keys, drag.shapes),
         alignmentTargets(new Set(drag.keys), true),
-        p.map((n, axis) => snap(anchor[axis] + n - start[axis], axis) - anchor[axis]) as Point,
+        p.map((n, axis) => n - start[axis]) as Point,
         e.altKey,
+        p.map((n, axis) => snap(anchor[axis] + n - start[axis], axis) - anchor[axis]) as Point,
       );
     const next = drag.shapes.map((s) => G.normalize(structuredClone(s)));
     moveParts(new Set(drag.keys), delta, next);
@@ -1319,10 +1447,11 @@ $('canvas').onpointermove = (e) => {
     const start = drag.start,
       anchor = drag.shapes[0].points[0],
       delta = smartDelta(
-        drag.shapes.flatMap((s) => G.rings(s).flatMap((r) => r.points)),
+        anchors(drag.shapes.flatMap((s) => G.rings(s).flatMap((r) => r.points))),
         alignmentTargets(new Set(drag.shapes.map((s) => s.id))),
-        p.map((n, axis) => snap(anchor[axis] + n - start[axis], axis) - anchor[axis]) as Point,
+        p.map((n, axis) => n - start[axis]) as Point,
         e.altKey,
+        p.map((n, axis) => snap(anchor[axis] + n - start[axis], axis) - anchor[axis]) as Point,
       );
     drag.shapes.forEach((saved) => {
       const next = G.normalize(structuredClone(saved));
@@ -1334,6 +1463,7 @@ $('canvas').onpointermove = (e) => {
 };
 function end(e?: { type: string }) {
   document.getElementById('alignmentGuides')!.replaceChildren();
+  $('canvas').classList.remove('is-aligning');
   if (!drag) return;
   const d = drag;
   drag = null;
@@ -1474,48 +1604,20 @@ $('background').onclick = () =>
 function combineShapes(op: BooleanOperation) {
   if (selectedIds.size < (op === 'flatten' ? 1 : 2)) return;
   try {
-    const operands = shapes.filter((s) => selectedIds.has(s.id) && !s.locked && !s.hidden),
-      result = G.combine(op, operands),
-      label = {
-        union: 'União',
-        difference: 'Subtração',
-        intersection: 'Interseção',
-        xor: 'Exclusão',
-        flatten: 'Caminho achatado',
-      }[op];
-    const merged = result.length
-      ? G.normalize({
-          ...structuredClone(operands[0]),
-          id: crypto.randomUUID(),
-          name: label,
-          type: 'custom' as ShapeType,
-          cut: 0,
-          radius: 0,
-          cornerRadii: undefined,
-          polygons: result,
-          points: result[0][0],
-        })
-      : null;
-    if (merged) {
-      delete merged.basePoints;
-      if (!G.valid({ version: 1, shapes: [merged] }))
-        throw Error('O resultado excedeu o limite de vértices.');
-    }
+    const label = {
+      union: 'União',
+      difference: 'Subtração',
+      intersection: 'Interseção',
+      xor: 'Exclusão',
+      flatten: 'Caminho achatado',
+    }[op];
     change(() => {
-      const last = shapes.findIndex((s) => s.id === operands.at(-1)!.id);
-      const next: Shape[] = [];
-      shapes.forEach((s, i) => {
-        if (!selectedIds.has(s.id)) next.push(s);
-        if (i === last && merged) next.push(merged);
-      });
-      shapes = next;
+      const ids = new Set(selectedShapes().map((s) => s.id));
+      const result = createBoolean(shapes, ids, op, label);
       clearSelection();
-      if (merged) selectShape(merged.id);
+      selectShape(result.id);
     });
-    if (!merged)
-      toast(
-        'A operação não gerou área. As formas selecionadas foram removidas; use Desfazer para restaurar.',
-      );
+    toast('Grupo editável criado. Expanda-o nas camadas para mover as formas originais.');
   } catch (e) {
     toast('Não foi possível combinar: ' + errorMessage(e));
   }
@@ -1741,7 +1843,9 @@ document.addEventListener('keydown', (e) => {
     e.preventDefault();
     editingPoints = false;
     clearParts();
-    selectedIds = new Set(shapes.filter((s) => !s.locked && !s.hidden).map((s) => s.id));
+    selectedIds = new Set(
+      shapes.filter((s) => !s.booleanParent && !s.locked && !s.hidden).map((s) => s.id),
+    );
     selected = shapes.at(-1)?.id || null;
     render();
     return;
@@ -1840,8 +1944,8 @@ document.addEventListener('keydown', (e) => {
   if (e.key.toLowerCase() === 'm') $('magnet').click();
   if (
     current() &&
-    !current()!.locked &&
-    !current()!.hidden &&
+    !effectiveLocked(shapes, current()!) &&
+    !effectiveHidden(shapes, current()!) &&
     ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)
   ) {
     e.preventDefault();

@@ -44,6 +44,9 @@ export interface Shape {
   locked?: boolean;
   hidden?: boolean;
   group?: { id: string; name: string };
+  boolean?: { operation: BooleanOperation; operands: string[] };
+  booleanParent?: string;
+  booleanEmpty?: boolean;
   media?: { src: string; mime: string; flipX?: boolean; flipY?: boolean };
 }
 export interface RingReference {

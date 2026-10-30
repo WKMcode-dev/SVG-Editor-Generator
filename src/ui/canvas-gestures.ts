@@ -22,8 +22,8 @@ export function installCanvasGestures(canvas: SVGSVGElement, actions: CameraGest
       if (!event.deltaY) return;
       actions.cancel();
       const r = canvas.getBoundingClientRect();
-      const delta = Math.max(-240, Math.min(240, event.deltaY * unit));
-      actions.zoom(Math.exp(-delta * 0.01), event.clientX - r.left, event.clientY - r.top);
+      const delta = Math.max(-60, Math.min(60, event.deltaY * unit));
+      actions.zoom(Math.exp(-delta * 0.002), event.clientX - r.left, event.clientY - r.top);
     },
     { passive: false, capture: true },
   );

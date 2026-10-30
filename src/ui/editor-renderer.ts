@@ -1,3 +1,4 @@
+import { effectiveHidden, effectiveLocked } from '../domain/boolean-groups';
 import { iconMarkup } from './icons';
 import * as G from '../domain/geometry';
 import type { Shape, Ring, Point, GridSettings, View, RingReference } from '../domain/models';
@@ -51,7 +52,13 @@ export function createRenderer(ctx: RenderContext) {
     const partial = ctx.selectedPoints.size || ctx.selectedSegments.size,
       points = ctx.allSelectedPoints();
     ctx.shapes
-      .filter((s) => ctx.selectedIds.has(s.id) && !s.locked && !s.hidden && G.editablePoints(s))
+      .filter(
+        (s) =>
+          ctx.selectedIds.has(s.id) &&
+          !effectiveLocked(ctx.shapes, s) &&
+          !effectiveHidden(ctx.shapes, s) &&
+          G.editablePoints(s),
+      )
       .forEach((s) => {
         if (!partial && ctx.selectedIds.size !== 1) return;
         G.rings(s).forEach((ring) =>
@@ -166,7 +173,11 @@ export function createRenderer(ctx: RenderContext) {
         .map((k) => JSON.parse(k).slice(1).join(':')),
     );
     const s = ctx.current();
-    const single = !!s && ctx.selectedIds.size === 1 && !s.locked && !s.hidden;
+    const single =
+      !!s &&
+      ctx.selectedIds.size === 1 &&
+      !effectiveLocked(ctx.shapes, s) &&
+      !effectiveHidden(ctx.shapes, s);
     document.querySelector('.stage')!.classList.toggle('editing-points', ctx.editingPoints);
     $('editPoints').classList.toggle('active', ctx.editingPoints);
     $('modeStatus').textContent = ctx.editingPoints
@@ -182,16 +193,27 @@ export function createRenderer(ctx: RenderContext) {
         node as SVGGElement,
       ]),
     );
-    ctx.shapes.forEach((item, index) => {
+    const displayShapes = [
+      ...ctx.shapes.filter((s) => !s.booleanParent || !ctx.selectedIds.has(s.id)),
+      ...ctx.shapes.filter((s) => s.booleanParent && ctx.selectedIds.has(s.id)),
+    ];
+    displayShapes.forEach((item, index) => {
       let group = old.get(item.id);
       if (!group) {
         group = el('g', { 'data-id': item.id });
         group.append(el('path', { class: 'shape' }), el('path', { class: 'shape-hit' }));
       }
       old.delete(item.id);
-      group.style.display = item.hidden ? 'none' : '';
+      const operand = !!item.booleanParent;
+      const selectedOperand = operand && ctx.selectedIds.has(item.id);
+      group.style.display =
+        effectiveHidden(ctx.shapes, item) || (operand && !selectedOperand) ? 'none' : '';
+      group.classList.toggle('boolean-operand', operand);
       group.style.pointerEvents = item.locked ? 'none' : '';
       const [visible, hit] = group.children;
+      visible.classList.toggle('shape', !operand);
+      visible.classList.toggle('boolean-source', operand);
+      (visible as SVGElement).style.pointerEvents = 'none';
       for (const node of [visible, hit]) {
         node.setAttribute('d', String(G.shapePath(item)));
         node.setAttribute('data-id', String(item.id));
@@ -241,7 +263,13 @@ export function createRenderer(ctx: RenderContext) {
         media.style.opacity = String(item.opacity / 100);
         media.style.filter = item.shadow ? 'drop-shadow(0px 4px 8px #0004)' : '';
       } else group.querySelector('.media-content')?.remove();
-      (hit as SVGElement).style.pointerEvents = item.locked ? 'none' : '';
+      if (operand) {
+        visible.setAttribute('fill', 'none');
+        visible.setAttribute('stroke', '#e548a6');
+        visible.setAttribute('stroke-width', String(1 / ctx.view.z));
+        visible.setAttribute('stroke-dasharray', `${4 / ctx.view.z} ${3 / ctx.view.z}`);
+      } else visible.removeAttribute('stroke-dasharray');
+      (hit as SVGElement).style.pointerEvents = effectiveLocked(ctx.shapes, item) ? 'none' : '';
       hit.setAttribute('stroke-width', String(String(Math.max(item.strokeWidth, 14 / ctx.view.z))));
       // Do not reinsert existing nodes: native click/double-click targets remain stable.
       if ($('shapes').children[index] !== group)

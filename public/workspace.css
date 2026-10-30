@@ -963,3 +963,11 @@ dialog select {
 .stage.map-light {
   background: #e4e1e9;
 }
+
+#canvas.is-aligning .handle.selected,
+#canvas.is-aligning .selected-edge {
+  stroke: #e548a6;
+}
+.boolean-group > .layer .layer-name {
+  font-weight: 600;
+}

@@ -48,8 +48,11 @@ export function installPresets(options: {
           b = G.exportBounds(copies),
           c = options.center(),
           groups = new Map<string, string>();
+        const ids = new Map(copies.map((s) => [s.id, crypto.randomUUID()]));
         copies.forEach((s) => {
-          s.id = crypto.randomUUID();
+          s.id = ids.get(s.id)!;
+          if (s.boolean) s.boolean.operands = s.boolean.operands.map((id) => ids.get(id)!);
+          if (s.booleanParent) s.booleanParent = ids.get(s.booleanParent);
           s.locked = false;
           s.hidden = false;
           if (s.group) {
