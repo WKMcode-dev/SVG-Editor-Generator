@@ -8,6 +8,8 @@ const assert = require('node:assert/strict');
   try {
     const p = await browser.newPage({ viewport: { width: 1440, height: 940 } });
     await p.goto(require('./browser-helper.cjs').editorURL);
+    await p.waitForSelector('.shape');
+    await p.click('#editPoints');
     await p.waitForSelector('.handle');
     const screen = async (x, y) =>
       p.evaluate(
@@ -31,6 +33,8 @@ const assert = require('node:assert/strict');
     assert.match(d, /L 600 360/);
     assert.equal(await p.evaluate(() => VectorBridge.applySvg(VectorBridge.svg())), true);
     await p.reload();
+    await p.waitForSelector('.shape');
+    await p.click('#editPoints');
     await p.waitForSelector('.shape');
     assert.equal(((await p.locator('.shape').getAttribute('d')).match(/A /g) || []).length, 2);
     await p.locator('#strokeWidth').fill('20');
