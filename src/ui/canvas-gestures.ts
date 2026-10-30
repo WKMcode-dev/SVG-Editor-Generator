@@ -2,24 +2,39 @@ interface CameraGestures {
   zoom(factor: number, x: number, y: number): void;
   pan(dx: number, dy: number): void;
   cancel(): void;
+  isPanning?(): boolean;
 }
-/** Precision touchpads emit ctrl-wheel; touchscreens use pointer pairs; WebKit uses gesture events. */
+/** Handles precision pinch, legacy touchpad scrolling, touch pointers and WebKit gestures. */
 export function installCanvasGestures(canvas: SVGSVGElement, actions: CameraGestures): void {
+  let nativeGestureActive = false;
   canvas.addEventListener(
     'wheel',
     (event) => {
+      if (!Number.isFinite(event.deltaY) || !Number.isFinite(event.deltaX)) return;
       event.preventDefault();
-      const factor = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? canvas.clientHeight : 1;
-      if (event.ctrlKey || event.metaKey) {
-        const r = canvas.getBoundingClientRect();
-        actions.zoom(
-          Math.exp(-event.deltaY * factor * 0.01),
-          event.clientX - r.left,
-          event.clientY - r.top,
-        );
-      } else actions.pan(-event.deltaX * factor, -event.deltaY * factor);
+      if (nativeGestureActive) return;
+      const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? canvas.clientHeight : 1;
+      const pinch = event.ctrlKey || event.metaKey;
+      // Some laptop drivers expose only unmodified wheel events. Vertical scrolling
+      // zooms too; Shift, the hand tool and horizontal scrolling remain available for pan.
+      if (
+        !pinch &&
+        (event.shiftKey || actions.isPanning?.() || Math.abs(event.deltaX) > Math.abs(event.deltaY))
+      ) {
+        actions.pan(-event.deltaX * unit, -event.deltaY * unit);
+        return;
+      }
+      if (!event.deltaY) return;
+      actions.cancel();
+      const r = canvas.getBoundingClientRect();
+      const delta = Math.max(-240, Math.min(240, event.deltaY * unit));
+      actions.zoom(
+        Math.exp(-delta * (pinch ? 0.01 : 0.003)),
+        event.clientX - r.left,
+        event.clientY - r.top,
+      );
     },
-    { passive: false },
+    { passive: false, capture: true },
   );
   const pointers = new Map<number, [number, number]>();
   let previous: { distance: number; x: number; y: number } | null = null,
@@ -100,9 +115,21 @@ export function installCanvasGestures(canvas: SVGSVGElement, actions: CameraGest
       e.preventDefault();
       actions.cancel();
       scale = 1;
+      nativeGestureActive = true;
     },
     { passive: false },
   );
+  canvas.addEventListener(
+    'gestureend',
+    (event) => {
+      event.preventDefault();
+      nativeGestureActive = false;
+    },
+    { passive: false },
+  );
+  window.addEventListener('blur', () => {
+    nativeGestureActive = false;
+  });
   canvas.addEventListener(
     'gesturechange',
     (e) => {

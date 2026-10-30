@@ -1457,6 +1457,7 @@ function zoom(f: number, cx?: number, cy?: number) {
   render();
 }
 installCanvasGestures($('canvas'), {
+  isPanning: () => mode === 'hand' || space,
   zoom: (f, x, y) => zoom(f, x, y),
   pan: (dx, dy) => {
     view.x += dx;

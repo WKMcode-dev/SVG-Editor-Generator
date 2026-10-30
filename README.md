@@ -102,3 +102,7 @@ Código sob MIT. Monaco e polygon-clipping são dependências empacotadas; suas 
 ### Grade e alinhamento
 
 O botão **⚙ Grade** no rodapé ajusta célula base, estilo, origem e passos do ímã. A grade ganha subdivisões conforme o zoom aumenta, até 1 px, sem alterar o passo escolhido. Ao arrastar pontos, segmentos ou formas, guias rosas e marcadores indicam alinhamento com os demais pontos visíveis. A tolerância é de 6 pixels de tela em qualquer zoom. Segure Alt para ignorar as guias durante o movimento.
+
+### Touchpad
+
+Use pinça para zoom. Em drivers que não enviam o gesto padrão, a rolagem vertical com dois dedos também dá zoom, mantendo o ponto sob o cursor. Shift+rolagem, a ferramenta Mão ou rolagem horizontal movem o canvas. Painéis laterais mantêm sua rolagem normal.

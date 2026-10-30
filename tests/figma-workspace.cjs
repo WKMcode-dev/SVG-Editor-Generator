@@ -98,6 +98,23 @@ const assert = require('node:assert/strict');
       clientY: box.y + 350,
     });
     assert.notEqual(await z(), old, 'trackpad ctrl-wheel zooms');
+    const afterPinch = await z();
+    await page.locator('#canvas').dispatchEvent('wheel', {
+      deltaY: -80,
+      clientX: box.x + 400,
+      clientY: box.y + 350,
+    });
+    assert.notEqual(await z(), afterPinch, 'legacy touchpad wheel zooms without Ctrl');
+    const beforePan = await z();
+    const beforeCamera = await page.locator('#camera').getAttribute('transform');
+    await page.locator('#canvas').dispatchEvent('wheel', {
+      deltaY: 60,
+      shiftKey: true,
+      clientX: box.x + 400,
+      clientY: box.y + 350,
+    });
+    assert.equal(await z(), beforePan, 'Shift-scroll pans without zoom');
+    assert.notEqual(await page.locator('#camera').getAttribute('transform'), beforeCamera);
     const zoomed = await z();
     await page.setViewportSize({ width: 1280, height: 840 });
     await page.waitForTimeout(60);
