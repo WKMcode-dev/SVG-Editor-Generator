@@ -35,6 +35,17 @@ const assert = require('node:assert/strict');
     assert.ok(Math.abs(pts[1][0] - pts[0][0] - (pts[2][1] - pts[1][1])) < 0.01);
     await draw('o', true);
     assert.equal((await project()).shapes.at(-1).type, 'ellipse');
+    await page.keyboard.press('Enter');
+    assert.equal(await page.locator('.handle').count(), 4);
+    const circle = (await project()).shapes.at(-1);
+    assert.equal(circle.points[0][0], circle.points[2][0]);
+    assert.equal(circle.points[1][1], circle.points[3][1]);
+    await page.keyboard.press('Escape');
+    await page.locator(`[data-key="${circle.id}"] .layer`).click();
+    await page
+      .locator(`[data-key="${(await project()).shapes[0].id}"] .layer`)
+      .click({ modifiers: ['Shift'] });
+    assert.equal(await page.locator('.selection-outline').count(), 2);
     await draw('l');
     assert.equal((await project()).shapes.at(-1).points.length, 2);
     await draw('Shift+l');

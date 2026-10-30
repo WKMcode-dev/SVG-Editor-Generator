@@ -55,7 +55,7 @@ function points(type: ShapeType, x = 200, y = 140, w = 400, h = 220): Ring {
       [x + w / 4, y + h],
       [x, y + h / 2],
     ];
-  if (type === 'diamond')
+  if (type === 'ellipse' || type === 'diamond')
     return [
       [x + w / 2, y],
       [x + w, y + h / 2],
@@ -94,6 +94,11 @@ const escape = (s: unknown) =>
 const path = (p: Ring) => 'M ' + p.map((v) => v.map(round).join(' ')).join(' L ') + ' Z';
 function normalize(s: Shape) {
   if (s.polygons) s.points = s.polygons[0][0];
+  if (s.type === 'ellipse' && s.points.length === 4) {
+    const [a, b, c, d] = s.points;
+    if (a[1] === b[1] && b[0] === c[0] && c[1] === d[1] && d[0] === a[0])
+      s.points = points('ellipse', a[0], a[1], c[0] - a[0], c[1] - a[1]);
+  }
   return s;
 }
 function rings(s: Shape) {
@@ -153,9 +158,29 @@ function ringRadii(s: Shape, ring: RingReference) {
 function shapePath(s: Shape): string {
   if (s.type === 'ellipse') {
     const b = bounds(s),
-      cx = b.x + b.width / 2,
-      cy = b.y + b.height / 2;
-    return `M ${b.x} ${cy} A ${b.width / 2} ${b.height / 2} 0 1 0 ${b.x + b.width} ${cy} A ${b.width / 2} ${b.height / 2} 0 1 0 ${b.x} ${cy} Z`;
+      p = s.points;
+    const regular =
+      p.length === 4 &&
+      p[0][0] === p[2][0] &&
+      p[1][1] === p[3][1] &&
+      p[0][1] === b.y &&
+      p[1][0] === b.x + b.width &&
+      p[2][1] === b.y + b.height &&
+      p[3][0] === b.x;
+    if (regular)
+      return `M ${p[0].join(' ')} ${p
+        .map((_, i) => `A ${b.width / 2} ${b.height / 2} 0 0 1 ${p[(i + 1) % p.length].join(' ')}`)
+        .join(' ')} Z`;
+    return (
+      `M ${p[0].join(' ')} ` +
+      p
+        .map((_, i) => {
+          const [a, c1, c2, b] = ellipseSegment(p, i);
+          return `C ${c1.map(round).join(' ')} ${c2.map(round).join(' ')} ${b.join(' ')}`;
+        })
+        .join(' ') +
+      ' Z'
+    );
   }
   if (s.type === 'line' || s.type === 'arrow') {
     const [a, b] = s.points;
@@ -182,20 +207,37 @@ function vectorShape(s: Shape) {
   return !s.media && !['line', 'arrow'].includes(s.type);
 }
 function editablePoints(s: Shape) {
-  return !s.media && s.type !== 'ellipse';
+  return !s.media;
+}
+// Four smooth anchors: top, right, bottom, left. Tangents remain linked.
+function ellipseSegment(points: Ring, i: number): [Point, Point, Point, Point] {
+  const count = points.length,
+    a = points[i],
+    b = points[(i + 1) % count],
+    before = points[(i + count - 1) % count],
+    after = points[(i + 2) % count],
+    k = 0.5522847498307936 / 2;
+  return [
+    a,
+    a.map((v, axis) => v + (b[axis] - before[axis]) * k) as Point,
+    b.map((v, axis) => v - (after[axis] - a[axis]) * k) as Point,
+    b,
+  ];
 }
 function polygonize(s: Shape): void {
-  if (s.type === 'ellipse') {
-    const b = bounds(s);
-    s.points = Array.from({ length: 96 }, (_, i) => {
-      const a = (i * Math.PI * 2) / 96;
-      return [
-        round(b.x + b.width / 2 + (Math.cos(a) * b.width) / 2),
-        round(b.y + b.height / 2 + (Math.sin(a) * b.height) / 2),
-      ] as Point;
+  if (s.type !== 'ellipse') return;
+  const anchors = s.points;
+  s.points = anchors.flatMap((_, i) => {
+    const [a, c1, c2, b] = ellipseSegment(anchors, i);
+    return Array.from({ length: 24 }, (_, j) => {
+      const t = j / 24,
+        u = 1 - t;
+      return a.map((v, axis) =>
+        round(u ** 3 * v + 3 * u * u * t * c1[axis] + 3 * u * t * t * c2[axis] + t ** 3 * b[axis]),
+      ) as Point;
     });
-    s.type = 'custom';
-  }
+  });
+  s.type = 'custom';
 }
 function exportBounds(shapes: Shape[]) {
   const visible = shapes.filter((s) => !s.hidden);
@@ -362,7 +404,7 @@ function svg(shapes: Shape[]) {
           ]
         : []),
       '        d="',
-      ...(shapePath(s).match(/[MLAZ][^MLAZ]*/g) || []).map((c) => '            ' + c.trim()),
+      ...(shapePath(s).match(/[MLCAZ][^MLCAZ]*/g) || []).map((c) => '            ' + c.trim()),
       '        "',
       '    />',
     ].join('\n');

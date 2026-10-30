@@ -96,7 +96,7 @@ export function parseCode(text: string, shapes: Shape[] = []) {
         rx = Number(node.getAttribute('rx')),
         ry = Number(node.getAttribute('ry'));
       if (!(rx > 0 && ry > 0)) throw Error('Raio da elipse inválido.');
-      pts = G.points('rectangle', cx - rx, cy - ry, rx * 2, ry * 2);
+      pts = G.points('ellipse', cx - rx, cy - ry, rx * 2, ry * 2);
     } else if (node.localName === 'line') {
       pts = [
         [Number(node.getAttribute('x1')), Number(node.getAttribute('y1'))],

@@ -253,3 +253,20 @@ test('line resizing keeps zero-height horizontal lines usable in the inspector',
     [250, 80],
   ]);
 });
+test('ellipse uses four cardinal anchors and retains smooth curves when edited', () => {
+  const shape = { ...s, type: 'ellipse', points: G.points('ellipse', 10, 20, 200, 200) };
+  assert.deepEqual(shape.points, [
+    [110, 20],
+    [210, 120],
+    [110, 220],
+    [10, 120],
+  ]);
+  assert.match(G.shapePath(shape), / A 100 100 /);
+  shape.points[0][0] += 15;
+  assert.match(G.shapePath(shape), / C /);
+  assert.equal(shape.points.length, 4);
+  assert.match(G.svg([shape]), /C /);
+  G.polygonize(shape);
+  assert.equal(shape.points.length, 96);
+  assert.deepEqual(shape.points[0], [125, 20]);
+});

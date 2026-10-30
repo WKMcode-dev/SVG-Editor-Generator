@@ -345,3 +345,24 @@ test('Backspace deletes selected points or shapes, supports undo and leaves text
     await e.close();
   }
 });
+test('ellipse starts circular with four editable anchors; Shift selects another whole shape', async () => {
+  const e = await editor();
+  try {
+    e.w.document.querySelector('[data-type="ellipse"]').click();
+    e.$('editPoints').click();
+    assert.equal(e.w.document.querySelectorAll('.handle').length, 4);
+    const ellipse = JSON.parse(e.snapshot()).shapes.at(-1);
+    assert.equal(G.bounds(ellipse).width, G.bounds(ellipse).height);
+    e.down(...ellipse.points[0], { target: e.w.document.querySelectorAll('.shape-hit')[1] });
+    e.move(ellipse.points[0][0] + 20, ellipse.points[0][1] + 15);
+    e.up();
+    assert.equal(JSON.parse(e.snapshot()).shapes.at(-1).type, 'ellipse');
+    assert.match(e.w.document.querySelectorAll('.shape')[1].getAttribute('d'), / C /);
+    e.down(220, 180, { shiftKey: true });
+    e.up();
+    assert.equal(e.w.document.querySelectorAll('.selection-outline').length, 2);
+    assert.equal(e.w.document.querySelectorAll('.handle').length, 0);
+  } finally {
+    await e.close();
+  }
+});

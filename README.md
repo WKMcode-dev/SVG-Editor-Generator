@@ -19,7 +19,7 @@ Canvas livre, sem moldura ou prancheta fixa de 800 × 500. O SVG é exportado co
 
 A barra flutuante fica centralizada na parte inferior do canvas. O menu de formas oferece retângulo, elipse, linha, seta, polígono e estrela. Escolha uma ferramenta e arraste; Shift restringe retângulos e elipses a quadrados e círculos, e linhas a ângulos de 45°. Os presets ficam na aba Recursos, com formas prontas e presets pessoais salvos neste navegador.
 
-Um clique seleciona a forma para mover e redimensionar. Duplo clique ou Enter abre a edição de pontos; Esc retorna à seleção normal. A ferramenta de segmentos usa Shift+V. Elipses são convertidas para 96 vértices ao entrar na edição de pontos; desfazer recupera a elipse original.
+Um clique seleciona a forma para mover e redimensionar. Duplo clique ou Enter abre a edição de pontos; Esc retorna à seleção normal. A ferramenta de segmentos usa Shift+V. Elipses começam com quatro pontos suaves (topo, direita, base e esquerda), mantidos durante a edição. Formas criadas por clique usam proporções naturais; arrastar permite escolher largura e altura. Shift+clique adiciona/remove formas da seleção; arrastar uma caixa inclui as formas tocadas.
 
 O painel esquerdo permite buscar, renomear por duplo clique no nome, agrupar/desagrupar, recolher grupos, mudar empilhamento, ocultar e bloquear camadas. Camadas bloqueadas ficam protegidas contra arraste, setas, exclusão e operações booleanas; o controle de cadeado permite desbloqueá-las. Os controles de visibilidade e bloqueio também funcionam no grupo inteiro.
 

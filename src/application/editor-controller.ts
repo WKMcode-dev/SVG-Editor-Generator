@@ -514,7 +514,7 @@ function shiftCornerIndexes(s: Shape, p: number, r: number, index: number, remov
 function dirty(s: Shape) {
   delete s.basePoints;
   s.cut = 0;
-  s.type = 'custom';
+  if (s.type !== 'ellipse') s.type = 'custom';
 }
 function setCornerRadius(convert = false) {
   change(() => {
@@ -809,7 +809,6 @@ $('closeShortcuts').onclick = () => $('shortcutsDialog').close();
 function enterPointMode() {
   const s = current();
   if (!s || s.locked || s.hidden || s.media) return;
-  if (s.type === 'ellipse') change(() => G.polygonize(s));
   editingPoints = true;
   mode = 'select';
   $('pointSection').open = true;
@@ -1071,8 +1070,12 @@ $('canvas').onpointerdown = (e) => {
       clickPoint: !add ? key : null,
     };
   } else if (targetNode.hasAttribute('data-id')) {
-    const id = targetNode.dataset.id!,
-      target = shapes.find((s) => s.id === id)!,
+    const id = targetNode.dataset.id!;
+    if (add && !selectedIds.has(id)) {
+      editingPoints = false;
+      clearParts();
+    }
+    const target = shapes.find((s) => s.id === id)!,
       edge = nearestRing(target, p);
     if (target.locked || target.hidden) return;
     if (
@@ -1199,7 +1202,7 @@ function marqueeSelection(p: Point) {
       .filter((s) => !s.locked && !s.hidden)
       .filter((s) => {
         const b = G.bounds(s);
-        return b.x >= x && b.y >= y && b.x + b.width <= x + width && b.y + b.height <= y + height;
+        return b.x <= x + width && b.y <= y + height && b.x + b.width >= x && b.y + b.height >= y;
       })
       .map((s) => s.id);
     selectedIds = new Set([...(drag.add ? drag.original.selectedIds : []), ...ids]);
@@ -1345,7 +1348,13 @@ function end(e?: { type: string }) {
     }
     if (!d.moved) {
       const s = shapes.find((s) => s.id === d.shapeId)!;
-      s.points = G.points(s.type, d.start[0], d.start[1], 160, 100);
+      s.points = G.points(
+        s.type,
+        d.start[0],
+        d.start[1],
+        160,
+        s.type === 'line' || s.type === 'arrow' ? 0 : s.type === 'rectangle' ? 120 : 160,
+      );
     }
     if (d.before) commit(d.before);
     tool('select');
@@ -1407,7 +1416,7 @@ $('canvas').ondblclick = (e) => {
     }
     return;
   }
-  if (current()?.media || ['line', 'arrow'].includes(current()?.type || '')) return;
+  if (current()?.media || ['ellipse', 'line', 'arrow'].includes(current()?.type || '')) return;
   let target: Shape | null = null,
     edge: (EdgeHit & RingReference) | null = null;
   // Geometric hit testing works on thin strokes and no-fill shapes, even if a click target changes.
@@ -1730,6 +1739,7 @@ document.addEventListener('keydown', (e) => {
   const command = e.ctrlKey || e.metaKey;
   if (command && e.key.toLowerCase() === 'a') {
     e.preventDefault();
+    editingPoints = false;
     clearParts();
     selectedIds = new Set(shapes.filter((s) => !s.locked && !s.hidden).map((s) => s.id));
     selected = shapes.at(-1)?.id || null;
