@@ -1,3 +1,8 @@
+import { installPresets } from './presets';
+import { installCanvasGestures } from '../ui/canvas-gestures';
+import { createLayers } from '../ui/layers';
+import { importMedia } from './media-import';
+import type { DrawTool } from '../domain/models';
 import {
   alignSelection,
   translateSelection,
@@ -38,7 +43,7 @@ let history: string[] = [],
 let selectedIds = new Set<string>([selected!]),
   selectedEdges = new Set<string>(),
   activeRing = { p: 0, r: 0 },
-  background: 'light' | 'dark' = 'dark';
+  background: 'light' | 'dark' = 'light';
 let selectedPoints = new Set<string>(),
   selectedSegments = new Set<string>();
 let lastSelectedId: string | null = selected;
@@ -46,8 +51,18 @@ let view: View = { x: 0, y: 0, z: 1 },
   mode: Tool = 'select',
   space = false;
 let drag: DragState | null = null;
+let editingPoints = false,
+  restoringLarge = false;
+try {
+  restoringLarge = storage.needsAsyncLoad();
+} catch {}
+if (restoringLarge) {
+  document.body.classList.add('restoring');
+  document.body.inert = true;
+  document.body.setAttribute('aria-busy', 'true');
+}
 let grid: GridSettings = {
-  visible: true,
+  visible: false,
   magnet: true,
   type: 'lines',
   cell: 24,
@@ -70,7 +85,7 @@ window.addEventListener('keyup', (e) => {
 window.addEventListener('blur', () => {
   shiftHeld = false;
 });
-let workspaceFiles: Workspace = { html: null, css: null, theme: 'orange-night', autoRepair: true };
+let workspaceFiles: Workspace = { html: null, css: null, theme: 'vs', autoRepair: true };
 function restoreGrid(saved: GridSettings | undefined) {
   if (
     !saved ||
@@ -102,7 +117,7 @@ try {
     lastSelectedId = selected;
     selectedIds = new Set(selected ? [selected] : []);
   }
-  if (saved?.background === 'light') background = 'light';
+  if (saved?.background === 'dark') background = 'dark';
   restoreGrid(saved?.grid);
   if (
     saved?.workspace &&
@@ -184,7 +199,7 @@ function moveParts(keys: Set<string>, delta: Point, list: Shape[] = shapes) {
   const touched = new Set<Shape>();
   keys.forEach((key) => {
     const ref = pointRef(key, list);
-    if (ref) {
+    if (ref && !ref.shape.locked && !ref.shape.hidden) {
       ref.ring.points[ref.i] = ref.point.map((n, axis) => G.round(n + delta[axis])) as Point;
       touched.add(ref.shape);
     }
@@ -195,7 +210,33 @@ function moveParts(keys: Set<string>, delta: Point, list: Shape[] = shapes) {
   });
 }
 
+const layerView = createLayers($('layers'), $('layerFilter'), {
+  getShapes: () => shapes,
+  getSelected: () => selectedIds,
+  select: (ids, multiple) => {
+    editingPoints = false;
+    if (!multiple) clearSelection();
+    ids.forEach((id) => selectShape(id, true));
+    render();
+  },
+  update: (ids, patch) =>
+    change(() => {
+      shapes.filter((s) => ids.includes(s.id)).forEach((s) => Object.assign(s, patch));
+      if (patch.locked || patch.hidden) {
+        editingPoints = false;
+        clearParts();
+      }
+    }),
+  renameGroup: (id, name) =>
+    change(() => {
+      shapes.filter((s) => s.group?.id === id).forEach((s) => (s.group!.name = name));
+    }),
+});
 const { render, camera, syncGrid } = createRenderer({
+  renderLayers: () => layerView.render(),
+  get editingPoints() {
+    return editingPoints;
+  },
   get history() {
     return history;
   },
@@ -295,6 +336,7 @@ const { render, camera, syncGrid } = createRenderer({
   partKey,
 });
 function selectShape(id: string, multiple = false) {
+  if (id !== selected) editingPoints = false;
   if (multiple) {
     if (selectedIds.has(id)) selectedIds.delete(id);
     else selectedIds.add(id);
@@ -307,6 +349,7 @@ function selectShape(id: string, multiple = false) {
   persist();
 }
 function clearSelection() {
+  editingPoints = false;
   selected = null;
   selectedIds.clear();
   clearParts();
@@ -314,24 +357,43 @@ function clearSelection() {
   vertex = 0;
 }
 function persist() {
+  if (restoringLarge) return;
   try {
     storage.save(project());
-    $('saveStatus').textContent = 'Salvo neste dispositivo';
+    $('saveStatus').textContent =
+      JSON.stringify(project()).length >= 1_500_000 ? 'Salvando mídia…' : 'Salvo neste dispositivo';
   } catch {
     $('saveStatus').textContent = 'Salvamento local indisponível';
     toast('Armazenamento local indisponível. Salve o projeto.');
   }
 }
 function commit(before: string) {
+  if (!G.valid(project())) {
+    const saved = JSON.parse(before);
+    shapes = saved.shapes.map(G.normalize);
+    selected = saved.selected;
+    selectedIds = new Set(saved.selectedIds || []);
+    vertex = saved.vertex;
+    clearParts();
+    render();
+    toast('A alteração ultrapassa os limites de coordenadas ou dimensões.');
+    return;
+  }
   if (before !== state()) {
     history.push(before);
-    if (history.length > 100) history.shift();
+    while (
+      history.length > 1 &&
+      (history.length > 100 || history.reduce((n, s) => n + s.length, 0) > 48_000_000)
+    )
+      history.shift();
     future = [];
+    if (!editingCode) window.dispatchEvent(new CustomEvent('vector-visual-change'));
     persist();
   }
   render();
 }
 function change(fn: () => void) {
+  if (codeTimer && !editingCode) applyCode();
   const before = state();
   fn();
   commit(before);
@@ -351,15 +413,24 @@ function restore(stack: string[], other: string[]) {
   activeRing = d.activeRing || { p: 0, r: 0 };
   selectedPoints = new Set(d.selectedPoints || []);
   selectedSegments = new Set(d.selectedSegments || []);
+  window.dispatchEvent(new CustomEvent('vector-visual-change'));
   persist();
   render();
 }
 
 function fit() {
-  const r = $('canvas').getBoundingClientRect();
-  view.z = Math.max(0.15, Math.min(1.5, (r.width - 80) / 800, (r.height - 100) / 500));
-  view.x = (r.width - 800 * view.z) / 2;
-  view.y = (r.height - 500 * view.z) / 2;
+  const r = $('canvas').getBoundingClientRect(),
+    b = G.exportBounds(shapes);
+  view.z = Math.max(
+    0.02,
+    Math.min(
+      1.5,
+      (r.width - 100) / Math.max(b.width, 240),
+      (r.height - 130) / Math.max(b.height, 180),
+    ),
+  );
+  view.x = (r.width - b.width * view.z) / 2 - b.x * view.z;
+  view.y = (r.height - b.height * view.z) / 2 - b.y * view.z;
   render();
 }
 function local(e: { clientX: number; clientY: number }) {
@@ -394,6 +465,16 @@ function setCornerRadius(convert = false) {
     const unit = $('radiusUnit').value as RadiusUnit,
       n = Number($('radius').value);
     if (!Number.isFinite(n)) return;
+    if (!editingPoints) {
+      selectedShapes()
+        .filter(G.vectorShape)
+        .forEach((s) => {
+          s.radius = Math.max(0, Math.min(unit === '%' ? 50 : 10000, n));
+          s.radiusUnit = unit;
+          delete s.cornerRadii;
+        });
+      return;
+    }
     const keys = allSelectedPoints().size
       ? allSelectedPoints()
       : new Set(current() ? [partKey(selected, activeRing.p, activeRing.r, vertex)] : []);
@@ -433,7 +514,7 @@ document.querySelectorAll<HTMLButtonElement>('[data-type]').forEach(
     ($(k).onchange = () =>
       change(() => {
         const s = current();
-        if (!s) return;
+        if (!s || s.locked) return;
         let v: string | boolean | number = k === 'noFill' ? $(k).checked : $(k).value;
         if (['opacity', 'strokeWidth'].includes(k))
           v = Math.max(0, Math.min(k === 'opacity' ? 100 : 30, Number(v) || 0));
@@ -475,17 +556,18 @@ $('contour').onchange = () => {
     ($(id).onchange = () =>
       change(() => {
         const s = current();
-        if (!s) return;
+        if (!s || s.locked) return;
         const b = G.bounds(s),
           n = Number(formControl(id).value);
-        if (!Number.isFinite(n) || n < 1 || n > 10000) return;
+        const open = ['line', 'arrow'].includes(s.type);
+        if (!Number.isFinite(n) || n < (open ? 0 : 1) || n > 10000) return;
         let w = id === 'shapeWidth' ? n : b.width,
           h = id === 'shapeHeight' ? n : b.height;
-        if ($('lockRatio').checked || shiftHeld) {
+        if (($('lockRatio').checked || shiftHeld) && b.width > 0 && b.height > 0) {
           if (id === 'shapeWidth') h = G.round((b.height * n) / b.width);
           else w = G.round((b.width * n) / b.height);
         }
-        if (w < 1 || h < 1 || w > 10000 || h > 10000)
+        if ((open ? w < 0 || h < 0 || !(w || h) : w < 1 || h < 1) || w > 10000 || h > 10000)
           return toast('Dimensões devem ficar entre 1 e 10.000 px.');
         G.resize(s, w, h);
         clearParts();
@@ -497,7 +579,7 @@ $('contour').onchange = () => {
       change(() => {
         const s = current(),
           n = Number(formControl(id).value);
-        if (s && Number.isFinite(n) && Math.abs(n) < 100000) {
+        if (s && !s.locked && Number.isFinite(n) && Math.abs(n) < 100000) {
           currentPoints()[vertex][axis] = n;
           dirty(s);
         }
@@ -515,9 +597,9 @@ $('remove').onclick = () =>
   });
 $('duplicate').onclick = () =>
   change(() => {
-    if (!current() || shapes.length + selectedIds.size > 100) return;
+    if (!selectedShapes().length || shapes.length + selectedShapes().length > 100) return;
     const copies = shapes
-      .filter((s) => selectedIds.has(s.id))
+      .filter((s) => selectedIds.has(s.id) && !s.locked && !s.hidden)
       .map((item) => {
         const s = G.normalize(structuredClone(item));
         s.id = crypto.randomUUID();
@@ -525,13 +607,20 @@ $('duplicate').onclick = () =>
         G.mapShape(s, (p) => p.map((n) => n + 24) as Point);
         return s;
       });
+    const groups = new Map<string, string>();
+    copies.forEach((s) => {
+      if (s.group) {
+        if (!groups.has(s.group.id)) groups.set(s.group.id, crypto.randomUUID());
+        s.group = { id: groups.get(s.group.id)!, name: s.group.name + ' cópia' };
+      }
+    });
     shapes.push(...copies);
     selectShape(copies.at(-1)!.id);
     selectedIds = new Set(copies.map((s) => s.id));
   });
 $('delete').onclick = () =>
   change(() => {
-    shapes = shapes.filter((s) => !selectedIds.has(s.id));
+    shapes = shapes.filter((s) => !selectedIds.has(s.id) || s.locked);
     clearSelection();
   });
 $('undo').onclick = () => restore(history, future);
@@ -541,14 +630,44 @@ function tool(v: Tool) {
   $('select').classList.toggle('active', v === 'select');
   $('lineSelect').classList.toggle('active', v === 'lines');
   $('hand').classList.toggle('active', v === 'hand');
-  $('canvas').style.cursor = v === 'hand' ? 'grab' : 'default';
+  if (v === 'lines') {
+    enterPointMode();
+    mode = 'lines';
+  }
+  if (v === 'select') editingPoints = false;
+  $('canvas').style.cursor =
+    v === 'hand' ? 'grab' : drawTools.includes(v as DrawTool) ? 'crosshair' : 'default';
+  $('shapeTool').classList.toggle('active', drawTools.includes(v as DrawTool));
+  $('modeStatus').textContent = drawTools.includes(v as DrawTool)
+    ? 'Arraste para desenhar · Shift restringe proporções'
+    : editingPoints
+      ? 'Editando pontos · Esc para voltar'
+      : 'Seleção · duplo clique para editar pontos';
+  render();
 }
-const selectedShapes = () => shapes.filter((s) => selectedIds.has(s.id));
+const drawTools: DrawTool[] = [
+  'rectangle',
+  'ellipse',
+  'line',
+  'arrow',
+  'triangle',
+  'hexagon',
+  'diamond',
+  'star',
+];
+const selectedShapes = () => shapes.filter((s) => selectedIds.has(s.id) && !s.locked && !s.hidden);
 (['shapeX', 'shapeY'] as const).forEach((id, axis) => {
   $(id).onchange = () => {
     const value = Number($(id).value),
       shape = current();
-    if (!shape || selectedIds.size !== 1 || !Number.isFinite(value) || Math.abs(value) > 100000)
+    if (
+      !shape ||
+      shape.locked ||
+      shape.hidden ||
+      selectedIds.size !== 1 ||
+      !Number.isFinite(value) ||
+      Math.abs(value) > 100000
+    )
       return render();
     change(() => {
       const box = G.bounds(shape);
@@ -560,7 +679,19 @@ const selectedShapes = () => shapes.filter((s) => selectedIds.has(s.id));
 document.querySelectorAll<HTMLButtonElement>('[data-align]').forEach((button) => {
   button.onclick = () =>
     change(() => {
-      alignSelection(selectedShapes(), button.dataset.align as Alignment);
+      const r = $('canvas').getBoundingClientRect();
+      alignSelection(
+        selectedShapes(),
+        button.dataset.align as Alignment,
+        selectedShapes().length === 1
+          ? {
+              x: -view.x / view.z,
+              y: -view.y / view.z,
+              width: r.width / view.z,
+              height: r.height / view.z,
+            }
+          : undefined,
+      );
       clearParts();
     });
 });
@@ -585,6 +716,187 @@ $('fitSelection').onclick = () => {
 };
 $('shortcuts').onclick = () => $('shortcutsDialog').showModal();
 $('closeShortcuts').onclick = () => $('shortcutsDialog').close();
+function enterPointMode() {
+  const s = current();
+  if (!s || s.locked || s.hidden || s.media) return;
+  if (s.type === 'ellipse') change(() => G.polygonize(s));
+  editingPoints = true;
+  mode = 'select';
+  $('pointSection').open = true;
+  clearParts();
+  render();
+  $('modeStatus').textContent = 'Editando pontos · Esc para voltar';
+}
+$('editPoints').onclick = enterPointMode;
+$('shapeTool').onclick = () => {
+  const open = $('shapeOptions').hidden;
+  $('shapeOptions').hidden = !open;
+  $('shapeTool').setAttribute('aria-expanded', String(open));
+};
+document.querySelectorAll<HTMLButtonElement>('[data-draw]').forEach(
+  (b) =>
+    (b.onclick = () => {
+      tool(b.dataset.draw as DrawTool);
+      $('shapeOptions').hidden = true;
+      $('shapeTool').setAttribute('aria-expanded', 'false');
+    }),
+);
+document.addEventListener('click', (e) => {
+  if (!(e.target as Element).closest('.shape-control')) {
+    $('shapeOptions').hidden = true;
+    $('shapeTool').setAttribute('aria-expanded', 'false');
+  }
+});
+$('toolbarCode').onclick = () => $('code').click();
+$('insertMedia').onclick = () => {
+  $('shapeOptions').hidden = true;
+  $('mediaFile').click();
+};
+$('mediaFile').onchange = async () => {
+  const files = [...($('mediaFile').files || [])];
+  $('mediaFile').value = '';
+  for (const file of files) {
+    try {
+      if (shapes.length >= 100) throw Error('Limite de 100 camadas.');
+      const r = $('canvas').getBoundingClientRect(),
+        center: Point = [(r.width / 2 - view.x) / view.z, (r.height / 2 - view.y) / view.z];
+      const shape = await importMedia(file, center);
+      if (
+        shapes.reduce((n, s) => n + (s.media?.src.length || 0), 0) + shape.media!.src.length >
+        32_000_000
+      )
+        throw Error('Limite de 24 MB de mídia por projeto.');
+      change(() => {
+        shapes.push(shape);
+        selectShape(shape.id);
+      });
+      tool('select');
+      toast('Mídia inserida. Use Salvar projeto para gerar um backup.');
+    } catch (e) {
+      toast(errorMessage(e));
+    }
+  }
+};
+$('toggleLock').onclick = () =>
+  change(() => {
+    const chosen = shapes.filter((s) => selectedIds.has(s.id)),
+      locked = !chosen.every((s) => s.locked);
+    chosen.forEach((s) => (s.locked = locked));
+    editingPoints = false;
+    clearParts();
+  });
+$('toggleVisibility').onclick = () =>
+  change(() => {
+    const chosen = shapes.filter((s) => selectedIds.has(s.id)),
+      hidden = !chosen.every((s) => s.hidden);
+    chosen.forEach((s) => (s.hidden = hidden));
+    editingPoints = false;
+    clearParts();
+  });
+$('shadow').onchange = () =>
+  change(() => selectedShapes().forEach((s) => (s.shadow = $('shadow').checked)));
+(['flipX', 'flipY'] as const).forEach((id, axis) => {
+  $(id).onclick = () =>
+    change(() =>
+      selectedShapes().forEach((s) => {
+        const b = G.bounds(s);
+        if (s.media) {
+          const key = axis ? 'flipY' : 'flipX';
+          s.media[key] = !s.media[key];
+        } else {
+          G.polygonize(s);
+          G.mapShape(
+            s,
+            (p) =>
+              p.map((n, i) =>
+                i === axis ? G.round((axis ? 2 * b.y + b.height : 2 * b.x + b.width) - n) : n,
+              ) as Point,
+          );
+        }
+      }),
+    );
+});
+$('rotation').onchange = () => {
+  const degrees = Number($('rotation').value);
+  if (!Number.isFinite(degrees)) return;
+  change(() =>
+    selectedShapes()
+      .filter((s) => !s.media)
+      .forEach((s) => {
+        G.polygonize(s);
+        const b = G.bounds(s),
+          cx = b.x + b.width / 2,
+          cy = b.y + b.height / 2,
+          a = (degrees * Math.PI) / 180;
+        G.mapShape(s, ([x, y]) => [
+          G.round(cx + (x - cx) * Math.cos(a) - (y - cy) * Math.sin(a)),
+          G.round(cy + (x - cx) * Math.sin(a) + (y - cy) * Math.cos(a)),
+        ]);
+      }),
+  );
+  $('rotation').value = '0';
+};
+$('playMedia').onclick = () => {
+  const node = [...$('shapes').children]
+    .find((n) => (n as SVGGElement).dataset.id === selected)
+    ?.querySelector<HTMLVideoElement>('video');
+  if (node) {
+    if (node.paused) {
+      node.style.pointerEvents = 'auto';
+      void node.play().catch(() => toast('Este navegador não conseguiu reproduzir o vídeo.'));
+      $('playMedia').textContent = 'Ⅱ Pausar vídeo';
+    } else {
+      node.pause();
+      node.style.pointerEvents = 'none';
+      $('playMedia').textContent = '▶ Reproduzir vídeo';
+    }
+  }
+};
+$('groupSelection').onclick = () => {
+  if (!selectedShapes().length) return;
+  change(() => {
+    const group = { id: crypto.randomUUID(), name: 'Grupo' };
+    selectedShapes().forEach((s) => (s.group = { ...group }));
+  });
+};
+$('ungroupSelection').onclick = () => change(() => selectedShapes().forEach((s) => delete s.group));
+installPresets({
+  getSelected: selectedShapes,
+  notify: toast,
+  center: () => {
+    const r = $('canvas').getBoundingClientRect();
+    return [(r.width / 2 - view.x) / view.z, (r.height / 2 - view.y) / view.z];
+  },
+  insert: (copies) => {
+    if (shapes.length + copies.length > 100) return toast('Limite de 100 camadas.');
+    change(() => {
+      shapes.push(...copies);
+      selectShape(copies[0].id);
+      selectedIds = new Set(copies.map((s) => s.id));
+    });
+  },
+});
+$('fileTab').onclick = () => {
+  $('layersPanel').hidden = false;
+  $('presetsPanel').hidden = true;
+  $('fileTab').classList.add('active');
+  $('assetsTab').classList.remove('active');
+};
+$('assetsTab').onclick = () => {
+  $('layersPanel').hidden = true;
+  $('presetsPanel').hidden = false;
+  $('assetsTab').classList.add('active');
+  $('fileTab').classList.remove('active');
+};
+$('toggleLeft').onclick = () => document.body.classList.toggle('left-collapsed');
+$('toggleRight').onclick = () => document.body.classList.toggle('right-collapsed');
+window.addEventListener('vector-storage-error', () => {
+  $('saveStatus').textContent = 'Falha ao salvar mídia';
+  toast('Não foi possível salvar automaticamente. Exporte um backup JSON.');
+});
+window.addEventListener('vector-storage-saved', () => {
+  $('saveStatus').textContent = 'Salvo neste dispositivo';
+});
 $('select').onclick = () => tool('select');
 $('hand').onclick = () => tool('hand');
 $('lineSelect').onclick = () => tool('lines');
@@ -608,19 +920,32 @@ function nearestHandle(p: Point) {
   return hit ? (handles[hit.index] as SVGCircleElement) : null;
 }
 $('canvas').onpointerdown = (e) => {
+  if (codeTimer && !editingCode) applyCode();
   const targetNode = e.target as SVGElement;
+  if (targetNode.closest('video')) return;
   if (e.button !== 0 && e.button !== 1) return;
   e.preventDefault();
   const p = local(e),
     add = e.shiftKey || e.ctrlKey || e.metaKey;
-  const pointTarget = targetNode.hasAttribute('data-point')
-    ? targetNode
-    : !e.altKey
-      ? nearestHandle(p)
-      : null;
-  if (mode === 'hand' || space || e.button === 1)
+  const pointTarget = !editingPoints
+    ? null
+    : targetNode.hasAttribute('data-point')
+      ? targetNode
+      : !e.altKey
+        ? nearestHandle(p)
+        : null;
+  if (drawTools.includes(mode as DrawTool) && !space && e.button === 0) {
+    if (shapes.length >= 100) return toast('Limite de 100 camadas.');
+    const before = state(),
+      s = make(mode as ShapeType);
+    s.points = G.points(s.type, snap(p[0], 0), snap(p[1], 1), 1, 1);
+    shapes.push(s);
+    const shapeType = mode as DrawTool;
+    selectShape(s.id);
+    drag = { kind: 'draw', start: p, shapeType, shapeId: s.id, shapes: [], before };
+  } else if (mode === 'hand' || space || e.button === 1)
     drag = { kind: 'pan', start: [e.clientX, e.clientY], view: { ...view } };
-  else if (targetNode.hasAttribute('data-resize') && current()) {
+  else if (targetNode.hasAttribute('data-resize') && current() && !current()!.locked) {
     const saved = G.normalize(structuredClone(current()!));
     drag = {
       kind: 'resize',
@@ -649,7 +974,7 @@ $('canvas').onpointerdown = (e) => {
       anchor: key,
       keys: [...allSelectedPoints()],
       shapes: shapes
-        .filter((s) => selectedIds.has(s.id))
+        .filter((s) => selectedIds.has(s.id) && !s.locked && !s.hidden)
         .map((s) => G.normalize(structuredClone(s))),
       before: state(),
       toggle: add && was ? { kind: 'point', key } : null,
@@ -659,7 +984,13 @@ $('canvas').onpointerdown = (e) => {
     const id = targetNode.dataset.id!,
       target = shapes.find((s) => s.id === id)!,
       edge = nearestRing(target, p);
-    if (!e.altKey && edge.distance <= Math.max(9 / view.z, target.strokeWidth / 2)) {
+    if (target.locked || target.hidden) return;
+    if (
+      editingPoints &&
+      !target.media &&
+      !e.altKey &&
+      edge.distance <= Math.max(9 / view.z, target.strokeWidth / 2)
+    ) {
       const key = partKey(id, edge.p, edge.r, edge.index - 1),
         was = selectedSegments.has(key),
         extend = add || mode === 'lines';
@@ -674,7 +1005,7 @@ $('canvas').onpointerdown = (e) => {
           anchor,
           keys,
           shapes: shapes
-            .filter((s) => selectedIds.has(s.id))
+            .filter((s) => selectedIds.has(s.id) && !s.locked && !s.hidden)
             .map((s) => G.normalize(structuredClone(s))),
           before: state(),
         };
@@ -696,7 +1027,7 @@ $('canvas').onpointerdown = (e) => {
           anchor: key,
           keys: [...allSelectedPoints()],
           shapes: shapes
-            .filter((s) => selectedIds.has(s.id))
+            .filter((s) => selectedIds.has(s.id) && !s.locked && !s.hidden)
             .map((s) => G.normalize(structuredClone(s))),
           before: state(),
           toggle: extend && was ? { kind: 'segment', key } : null,
@@ -712,7 +1043,7 @@ $('canvas').onpointerdown = (e) => {
           anchor,
           keys,
           shapes: shapes
-            .filter((s) => selectedIds.has(s.id))
+            .filter((s) => selectedIds.has(s.id) && !s.locked && !s.hidden)
             .map((s) => G.normalize(structuredClone(s))),
           before: state(),
         };
@@ -729,7 +1060,7 @@ $('canvas').onpointerdown = (e) => {
           kind: 'shape',
           start: p,
           shapes: shapes
-            .filter((s) => selectedIds.has(s.id))
+            .filter((s) => selectedIds.has(s.id) && !s.locked && !s.hidden)
             .map((s) => G.normalize(structuredClone(s))),
           before: state(),
         };
@@ -773,16 +1104,32 @@ function marqueeSelection(p: Point) {
       'vector-effect': 'non-scaling-stroke',
     }),
   );
+  if (!editingPoints) {
+    const ids = shapes
+      .filter((s) => !s.locked && !s.hidden)
+      .filter((s) => {
+        const b = G.bounds(s);
+        return b.x >= x && b.y >= y && b.x + b.width <= x + width && b.y + b.height <= y + height;
+      })
+      .map((s) => s.id);
+    selectedIds = new Set([...(drag.add ? drag.original.selectedIds : []), ...ids]);
+    selected = [...selectedIds].at(-1) || null;
+    clearParts();
+    render();
+    return;
+  }
   selectedPoints = new Set(drag.initial);
   selectedSegments.clear();
-  shapes.forEach((s) =>
-    G.rings(s).forEach((ring) =>
-      ring.points.forEach(([px, py], i) => {
-        if (px >= x && px <= x + width && py >= y && py <= y + height)
-          selectedPoints.add(partKey(s.id, ring.p, ring.r, i));
-      }),
-    ),
-  );
+  shapes
+    .filter((s) => !s.locked && !s.hidden)
+    .forEach((s) =>
+      G.rings(s).forEach((ring) =>
+        ring.points.forEach(([px, py], i) => {
+          if (px >= x && px <= x + width && py >= y && py <= y + height)
+            selectedPoints.add(partKey(s.id, ring.p, ring.r, i));
+        }),
+      ),
+    );
   partialIds();
   render();
 }
@@ -808,7 +1155,38 @@ $('canvas').onpointermove = (e) => {
     marqueeSelection(p);
     return;
   }
-  if (drag.kind === 'pan') {
+  if (drag.kind === 'draw') {
+    const s = shapes.find((s) => s.id === (drag as Extract<DragState, { kind: 'draw' }>).shapeId)!;
+    let dx = snap(p[0], 0) - snap(drag.start[0], 0),
+      dy = snap(p[1], 1) - snap(drag.start[1], 1);
+    if (e.shiftKey) {
+      if (s.type === 'line' || s.type === 'arrow') {
+        const length = Math.hypot(dx, dy),
+          angle = (Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) * Math.PI) / 4;
+        dx = G.round(Math.cos(angle) * length);
+        dy = G.round(Math.sin(angle) * length);
+      } else {
+        const size = Math.max(Math.abs(dx), Math.abs(dy));
+        dx = Math.sign(dx || 1) * size;
+        dy = Math.sign(dy || 1) * size;
+      }
+    }
+    const x = snap(drag.start[0], 0),
+      y = snap(drag.start[1], 1);
+    s.points =
+      s.type === 'line' || s.type === 'arrow'
+        ? [
+            [x, y],
+            [x + dx, y + dy],
+          ]
+        : G.points(
+            s.type,
+            Math.min(x, x + dx),
+            Math.min(y, y + dy),
+            Math.max(1, Math.abs(dx)),
+            Math.max(1, Math.abs(dy)),
+          );
+  } else if (drag.kind === 'pan') {
     view.x = drag.view.x + e.clientX - drag.start[0];
     view.y = drag.view.y + e.clientY - drag.start[1];
   } else if (drag.kind === 'resize') {
@@ -861,6 +1239,21 @@ function end(e?: { type: string }) {
   drag = null;
   if ($('canvas').hasPointerCapture(d.pointer!)) $('canvas').releasePointerCapture(d.pointer!);
   $('marquee').replaceChildren();
+  if (d.kind === 'draw') {
+    if (e?.type === 'pointercancel') {
+      shapes = shapes.filter((s) => s.id !== d.shapeId);
+      clearSelection();
+      render();
+      return;
+    }
+    if (!d.moved) {
+      const s = shapes.find((s) => s.id === d.shapeId)!;
+      s.points = G.points(s.type, d.start[0], d.start[1], 160, 100);
+    }
+    if (d.before) commit(d.before);
+    tool('select');
+    return;
+  }
   if (d.kind === 'marquee') {
     if (e?.type === 'pointercancel') {
       selected = d.original.selected;
@@ -908,10 +1301,20 @@ $('canvas').onpointercancel = end;
 $('canvas').ondblclick = (e) => {
   if (mode === 'hand' || space) return;
   const p = local(e);
+  if (!editingPoints) {
+    const id = (e.target as Element).closest('[data-id]')?.getAttribute('data-id');
+    const s = shapes.find((s) => s.id === id && !s.locked && !s.hidden);
+    if (s) {
+      selectShape(s.id);
+      enterPointMode();
+    }
+    return;
+  }
+  if (current()?.media || ['line', 'arrow'].includes(current()?.type || '')) return;
   let target: Shape | null = null,
     edge: (EdgeHit & RingReference) | null = null;
   // Geometric hit testing works on thin strokes and no-fill shapes, even if a click target changes.
-  for (const s of [...shapes].reverse()) {
+  for (const s of [...shapes].reverse().filter((s) => !s.locked && !s.hidden && !s.media)) {
     const hit = nearestRing(s, p);
     if (hit.distance <= Math.max(9 / view.z, s.strokeWidth / 2)) {
       target = s;
@@ -941,27 +1344,21 @@ function zoom(f: number, cx?: number, cy?: number) {
   const r = $('canvas').getBoundingClientRect();
   cx ??= r.width / 2;
   cy ??= r.height / 2;
-  const z = Math.max(0.15, Math.min(4, view.z * f));
+  const z = Math.max(0.02, Math.min(64, view.z * f));
   view.x = cx - ((cx - view.x) * z) / view.z;
   view.y = cy - ((cy - view.y) * z) / view.z;
   view.z = z;
   render();
 }
-$('canvas').addEventListener(
-  'wheel',
-  (e) => {
-    e.preventDefault();
-    if (e.ctrlKey) {
-      const r = $('canvas').getBoundingClientRect();
-      zoom(Math.exp(-e.deltaY * 0.002), e.clientX - r.left, e.clientY - r.top);
-    } else {
-      view.x -= e.deltaX;
-      view.y -= e.deltaY;
-      camera();
-    }
+installCanvasGestures($('canvas'), {
+  zoom: (f, x, y) => zoom(f, x, y),
+  pan: (dx, dy) => {
+    view.x += dx;
+    view.y += dy;
+    camera();
   },
-  { passive: false },
-);
+  cancel: () => end({ type: 'pointercancel' }),
+});
 $('plus').onclick = () => zoom(1.2);
 $('minus').onclick = () => zoom(1 / 1.2);
 $('fit').onclick = fit;
@@ -971,7 +1368,7 @@ $('background').onclick = () =>
 function combineShapes(op: BooleanOperation) {
   if (selectedIds.size < (op === 'flatten' ? 1 : 2)) return;
   try {
-    const operands = shapes.filter((s) => selectedIds.has(s.id)),
+    const operands = shapes.filter((s) => selectedIds.has(s.id) && !s.locked && !s.hidden),
       result = G.combine(op, operands),
       label = {
         union: 'União',
@@ -1103,7 +1500,7 @@ $('file').onchange = async () => {
   try {
     const f = $('file').files?.[0];
     if (!f) return;
-    if (f.size > 2000000) throw Error();
+    if (f.size > 100_000_000) throw Error();
     const d = JSON.parse(await f.text());
     if (!G.valid(d)) throw Error();
     change(() => {
@@ -1223,6 +1620,7 @@ $('copy').onclick = async () => {
 };
 document.addEventListener('keydown', (e) => {
   const targetNode = e.target as HTMLElement;
+  if (restoringLarge) return;
   if (
     ['INPUT', 'TEXTAREA', 'SELECT'].includes(targetNode.tagName) ||
     targetNode.closest('.monaco-editor') ||
@@ -1234,7 +1632,7 @@ document.addEventListener('keydown', (e) => {
   if (command && e.key.toLowerCase() === 'a') {
     e.preventDefault();
     clearParts();
-    selectedIds = new Set(shapes.map((s) => s.id));
+    selectedIds = new Set(shapes.filter((s) => !s.locked && !s.hidden).map((s) => s.id));
     selected = shapes.at(-1)?.id || null;
     render();
     return;
@@ -1254,9 +1652,35 @@ document.addEventListener('keydown', (e) => {
     $('shortcuts').click();
     return;
   }
-  if (!command && !e.altKey && e.key.toLowerCase() === 'r') {
+  if (command && e.shiftKey && e.key.toLowerCase() === 'k') {
     e.preventDefault();
-    document.querySelector<HTMLButtonElement>('[data-type="rectangle"]')?.click();
+    $('mediaFile').click();
+    return;
+  }
+  if (command && e.shiftKey && e.key.toLowerCase() === 'l') {
+    e.preventDefault();
+    $('toggleLock').click();
+    return;
+  }
+  if (command && e.shiftKey && e.key.toLowerCase() === 'h') {
+    e.preventDefault();
+    $('toggleVisibility').click();
+    return;
+  }
+  if (command && e.key.toLowerCase() === 'g') {
+    e.preventDefault();
+    (e.shiftKey ? $('ungroupSelection') : $('groupSelection')).click();
+    return;
+  }
+  if (!command && !e.altKey && e.key === 'Enter') {
+    e.preventDefault();
+    enterPointMode();
+    return;
+  }
+  if (!command && !e.altKey && ['r', 'o', 'l'].includes(e.key.toLowerCase())) {
+    e.preventDefault();
+    const key = e.key.toLowerCase();
+    tool(key === 'r' ? 'rectangle' : key === 'o' ? 'ellipse' : e.shiftKey ? 'arrow' : 'line');
     return;
   }
   if (e.code === 'Space') {
@@ -1275,6 +1699,13 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Delete') $('delete').click();
   if (e.key === 'Escape') {
     if (drag) end({ type: 'pointercancel' });
+    if (editingPoints) {
+      editingPoints = false;
+      clearParts();
+      tool('select');
+      return;
+    }
+    tool('select');
     clearSelection();
     render();
   }
@@ -1291,11 +1722,15 @@ document.addEventListener('keydown', (e) => {
       return;
     }
   }
-  if (e.key.toLowerCase() === 'v') tool('select');
-  if (e.key.toLowerCase() === 'l') tool('lines');
+  if (!command && !e.altKey && e.key.toLowerCase() === 'v') tool(e.shiftKey ? 'lines' : 'select');
   if (e.key.toLowerCase() === 'h') tool('hand');
   if (e.key.toLowerCase() === 'm') $('magnet').click();
-  if (current() && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+  if (
+    current() &&
+    !current()!.locked &&
+    !current()!.hidden &&
+    ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)
+  ) {
     e.preventDefault();
     change(() => {
       const axis = ['ArrowLeft', 'ArrowRight'].includes(e.key) ? 0 : 1,
@@ -1330,9 +1765,40 @@ window.addEventListener('blur', flushAutosave);
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') flushAutosave();
 });
-new ResizeObserver(() => fit()).observe($('canvas'));
+let previousSize: { width: number; height: number } | null = null;
+new ResizeObserver(() => {
+  const r = $('canvas').getBoundingClientRect();
+  if (previousSize) {
+    view.x += (r.width - previousSize.width) / 2;
+    view.y += (r.height - previousSize.height) / 2;
+    camera();
+  }
+  previousSize = { width: r.width, height: r.height };
+}).observe($('canvas'));
 fit();
-persist();
+if (restoringLarge) {
+  void storage
+    .loadLarge()
+    .then((saved) => {
+      if (saved) {
+        shapes = saved.shapes.map(G.normalize);
+        selected = shapes.find((s) => s.id === saved.lastSelectedId)?.id || null;
+        selectedIds = new Set(selected ? [selected] : []);
+        restoreGrid(saved.grid);
+        background = saved.background || 'light';
+        if (saved.workspace) workspaceFiles = saved.workspace;
+        window.CodeWorkbench?.loadWorkspace(workspaceFiles);
+      } else toast('Salvamento com mídia indisponível. Abra seu backup JSON.');
+    })
+    .catch(() => toast('Não foi possível restaurar o salvamento. Abra seu backup JSON.'))
+    .finally(() => {
+      restoringLarge = false;
+      document.body.classList.remove('restoring');
+      document.body.inert = false;
+      document.body.removeAttribute('aria-busy');
+      fit();
+    });
+} else persist();
 window.VectorBridge = {
   svg: () => G.svg(shapes),
   readWorkspace: () => workspaceFiles,
