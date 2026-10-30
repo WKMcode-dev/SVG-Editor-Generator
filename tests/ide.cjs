@@ -18,7 +18,7 @@ const assert = require('node:assert/strict'),
     await page.waitForFunction(() => !!window.CodeWorkbench);
     await page.click('#code');
     await page.waitForSelector('.monaco-editor');
-    assert.equal(await page.locator('#editorTheme').inputValue(), 'orange-night');
+    assert.equal(await page.locator('#editorTheme').inputValue(), 'vs');
     await page.selectOption('#editorTheme', 'quiet-paper');
     assert.ok(
       await page
@@ -110,7 +110,7 @@ const assert = require('node:assert/strict'),
     await page.click('#background');
     assert.equal(
       await page.locator('.stage').evaluate((e) => getComputedStyle(e).backgroundColor),
-      'rgb(203, 199, 190)',
+      'rgb(37, 38, 41)',
     );
     await page.reload();
     await page.waitForFunction(() => !!window.CodeWorkbench);
