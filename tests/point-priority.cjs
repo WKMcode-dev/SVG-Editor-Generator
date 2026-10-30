@@ -7,6 +7,8 @@ const assert = require('node:assert/strict');
     const errors = [];
     page.on('pageerror', (e) => e.message !== 'Canceled' && errors.push(e.message));
     await page.goto(editorURL + '/SVG-Editor-Generator/');
+    await page.waitForSelector('.shape');
+    await page.click('#editPoints');
     await page.waitForSelector('.handle');
     async function corner() {
       return page
@@ -32,6 +34,8 @@ const assert = require('node:assert/strict');
     assert.equal(await page.locator('.handle').count(), 4);
     const saved = await page.evaluate(() => localStorage.getItem('svg-editor-project'));
     await page.reload();
+    await page.waitForSelector('.shape');
+    await page.click('#editPoints');
     await page.waitForSelector('.handle');
     assert.equal(
       await page.evaluate(
@@ -44,6 +48,8 @@ const assert = require('node:assert/strict');
     await page.click('[data-code-tab="html"]');
     await page.evaluate(() => window.CodeWorkbench.setValue('html', ''));
     await page.reload();
+    await page.waitForSelector('.shape');
+    await page.click('#editPoints');
     await page.waitForFunction(() => !!window.CodeWorkbench);
     assert.equal(await page.evaluate(() => window.CodeWorkbench.getValue('html')), '');
     assert.deepEqual(errors, []);
