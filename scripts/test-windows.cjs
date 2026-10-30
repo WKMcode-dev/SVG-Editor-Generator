@@ -41,6 +41,8 @@ const fs = require('node:fs'),
     await page.waitForSelector('.shape', { timeout: 15000 });
     await page.waitForFunction(() => !!window.CodeWorkbench, { timeout: 15000 });
     assert.equal(await page.title(), 'SVG Editor Generator');
+    assert.equal(await page.locator('.handle').count(), 0);
+    await page.click('#editPoints');
     assert.equal(await page.locator('.handle').count(), 4);
     assert.equal(await page.evaluate(() => typeof window.__TAURI__?.core?.invoke), 'function');
     await page.fill('#shapeWidth', '620');

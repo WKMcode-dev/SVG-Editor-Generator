@@ -17,9 +17,8 @@ export function selectionBounds(shapes: Shape[]): Bounds | null {
 export function translateSelection(shapes: Shape[], dx: number, dy: number): void {
   shapes.forEach((shape) => mapShape(shape, ([x, y]) => [round(x + dx), round(y + dy)]));
 }
-export function alignSelection(shapes: Shape[], alignment: Alignment): void {
-  const box =
-    shapes.length === 1 ? { x: 0, y: 0, width: 800, height: 500 } : selectionBounds(shapes);
+export function alignSelection(shapes: Shape[], alignment: Alignment, target?: Bounds): void {
+  const box = target || selectionBounds(shapes);
   if (!box) return;
   shapes.forEach((shape) => {
     const b = bounds(shape);

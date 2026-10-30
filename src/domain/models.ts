@@ -3,6 +3,12 @@ export type Ring = Point[];
 export type Polygon = Ring[];
 export type MultiPolygon = Polygon[];
 export type ShapeType =
+  | 'ellipse'
+  | 'line'
+  | 'arrow'
+  | 'star'
+  | 'image'
+  | 'video'
   | 'rectangle'
   | 'triangle'
   | 'hexagon'
@@ -34,6 +40,11 @@ export interface Shape {
   radiusUnit?: RadiusUnit;
   cornerRadii?: Record<string, CornerRadius>;
   regeneratePath?: boolean;
+  shadow?: boolean;
+  locked?: boolean;
+  hidden?: boolean;
+  group?: { id: string; name: string };
+  media?: { src: string; mime: string; flipX?: boolean; flipY?: boolean };
 }
 export interface RingReference {
   p: number;
@@ -82,7 +93,16 @@ export interface ValidationResult {
   line?: number;
 }
 export type CodeTab = 'svg' | 'html' | 'css' | 'preview';
-export type Tool = 'select' | 'lines' | 'hand';
+export type DrawTool =
+  | 'rectangle'
+  | 'ellipse'
+  | 'line'
+  | 'arrow'
+  | 'triangle'
+  | 'hexagon'
+  | 'diamond'
+  | 'star';
+export type Tool = 'select' | 'lines' | 'hand' | DrawTool;
 export interface View {
   x: number;
   y: number;

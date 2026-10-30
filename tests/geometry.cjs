@@ -34,7 +34,7 @@ test('SVG formatado preserva geometria e escapa atributos', () => {
   assert.match(svg, /Teste &lt;&amp;&quot;/);
   assert.match(svg, /fill="none"/);
   assert.match(svg, /\n            M 200 140\n            L 600 140/);
-  assert.match(svg, /viewBox="0 0 800 500"/);
+  assert.match(svg, /viewBox="199 139 402 222"/);
   assert.deepEqual(G.parsePath(svg.match(/d="\n([\s\S]*?)"/)[1]), s.points);
 });
 test('projeto vazio é válido internamente; inválidos são rejeitados', () => {
@@ -188,4 +188,68 @@ test('operações calculam áreas corretas, recortes e regiões separadas', () =
   assert.equal(G.combine('union', [a, disjoint]).length, 2);
   G.resize(compound, 200, 200);
   assert.equal(area(compound.polygons), 30000);
+});
+
+test('open lines, arrows and ellipses round-trip their intended geometric paths', () => {
+  for (const type of ['line', 'arrow', 'ellipse', 'star']) {
+    const shape = { ...s, type, points: G.points(type), noFill: ['line', 'arrow'].includes(type) };
+    assert.ok(G.valid({ version: 1, shapes: [shape] }));
+    if (type === 'line') assert.ok(!G.shapePath(shape).includes('Z'));
+    if (type === 'arrow') assert.equal((G.shapePath(shape).match(/M /g) || []).length, 2);
+    if (type === 'ellipse') assert.match(G.shapePath(shape), / A /);
+    if (type === 'star') assert.equal(shape.points.length, 10);
+  }
+});
+test('free-canvas export crops visible shapes and ignores hidden layers in its bounds', () => {
+  const hidden = {
+    ...s,
+    id: 'hidden',
+    hidden: true,
+    points: G.points('rectangle', -5000, -5000, 2000, 2000),
+  };
+  assert.deepEqual(G.exportBounds([s, hidden]), { x: 199, y: 139, width: 402, height: 222 });
+  assert.match(G.svg([s, hidden]), /display="none"/);
+  assert.throws(
+    () =>
+      G.combine('union', [
+        {
+          ...s,
+          type: 'line',
+          points: [
+            [0, 0],
+            [50, 0],
+          ],
+        },
+        s,
+      ]),
+    /vetoriais fechadas/,
+  );
+  assert.ok(
+    !G.valid({
+      version: 1,
+      shapes: [
+        { ...s, type: 'image', media: { mime: 'image/png', src: 'https://example.com/image.png' } },
+      ],
+    }),
+  );
+});
+test('line resizing keeps zero-height horizontal lines usable in the inspector', () => {
+  const line = {
+    ...s,
+    type: 'line',
+    points: [
+      [0, 0],
+      [100, 0],
+    ],
+  };
+  G.resize(line, 250, 0);
+  assert.deepEqual(line.points, [
+    [0, 0],
+    [250, 0],
+  ]);
+  G.resize(line, 250, 80);
+  assert.deepEqual(line.points, [
+    [0, 0],
+    [250, 80],
+  ]);
 });

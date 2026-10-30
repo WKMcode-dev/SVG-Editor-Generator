@@ -6,7 +6,10 @@ export function cleanDocument(html: string) {
       if (
         /^on/i.test(a.name) ||
         ['srcdoc', 'formaction'].includes(a.name) ||
-        (['href', 'src', 'xlink:href'].includes(a.name) && !/^data:image\//i.test(a.value))
+        (['href', 'src', 'xlink:href'].includes(a.name) &&
+          !/^data:(?:image\/(?:png|jpeg|webp|gif|avif)|video\/(?:mp4|webm|ogg));base64,/i.test(
+            a.value,
+          ))
       )
         n.removeAttribute(a.name);
     }),
@@ -15,5 +18,5 @@ export function cleanDocument(html: string) {
 }
 export function exportDocument(html: string, cssText: string) {
   const css = cssText.replace(/<\/style/gi, '<\\/style');
-  return `<!doctype html>\n<html lang="pt-BR">\n<head>\n    <meta charset="utf-8">\n    <meta name="viewport" content="width=device-width,initial-scale=1">\n    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:">\n    <title>Meu design SVG</title>\n    <style>\n${css}\n    </style>\n</head>\n<body>\n${cleanDocument(html)}\n</body>\n</html>`;
+  return `<!doctype html>\n<html lang="pt-BR">\n<head>\n    <meta charset="utf-8">\n    <meta name="viewport" content="width=device-width,initial-scale=1">\n    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; media-src data:; font-src data:">\n    <title>Meu design SVG</title>\n    <style>\n${css}\n    </style>\n</head>\n<body>\n${cleanDocument(html)}\n</body>\n</html>`;
 }

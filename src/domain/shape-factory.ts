@@ -2,6 +2,12 @@ import * as G from './geometry';
 import type { Shape, ShapeType } from './models';
 const names: Record<string, string> = {
   rectangle: 'Retângulo',
+  ellipse: 'Elipse',
+  line: 'Linha',
+  arrow: 'Seta',
+  star: 'Estrela',
+  image: 'Imagem',
+  video: 'Vídeo',
   triangle: 'Triângulo',
   hexagon: 'Hexágono',
   diamond: 'Losango',
@@ -11,11 +17,11 @@ export const make = (type: ShapeType): Shape => ({
   type,
   name: names[type],
   points: G.points(type),
-  fill: '#222427',
-  stroke: '#ff9b20',
-  strokeWidth: 2,
+  fill: '#d9d9d9',
+  stroke: '#737373',
+  strokeWidth: 1,
   opacity: 100,
   join: 'miter',
   cut: 0,
-  noFill: false,
+  noFill: type === 'line' || type === 'arrow',
 });

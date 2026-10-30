@@ -1,4 +1,19 @@
 export interface UiElementMap {
+  mediaFile: HTMLInputElement;
+  shapeTool: HTMLButtonElement;
+  shapeOptions: HTMLElement;
+  modeStatus: HTMLElement;
+  editPoints: HTMLButtonElement;
+  pointSection: HTMLDetailsElement;
+  shadow: HTMLInputElement;
+  rotation: HTMLInputElement;
+  flipX: HTMLButtonElement;
+  flipY: HTMLButtonElement;
+  toggleVisibility: HTMLButtonElement;
+  toggleLock: HTMLButtonElement;
+  playMedia: HTMLButtonElement;
+  savedPresets: HTMLElement;
+
   shapeX: HTMLInputElement;
   shapeY: HTMLInputElement;
   layerFilter: HTMLInputElement;

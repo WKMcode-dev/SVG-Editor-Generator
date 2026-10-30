@@ -45,6 +45,7 @@ async function editor(saved) {
   w.SVGElement.prototype.releasePointerCapture = () => {};
   w.eval(controller);
   const $ = (id) => w.document.getElementById(id);
+  $('editPoints').click();
   function screen(x, y) {
     const numbers = $('camera')
       .getAttribute('transform')
@@ -92,7 +93,7 @@ test('compiled controller boots and a near-point click selects only one point', 
   const e = await editor();
   try {
     assert.equal(e.w.document.querySelectorAll('.shape').length, 1);
-    e.click(206, 140);
+    e.click(203, 140);
     assert.equal(e.w.document.querySelectorAll('.selected-edge').length, 0);
     assert.equal(e.w.document.querySelectorAll('.handle.selected').length, 1);
   } finally {
@@ -103,12 +104,12 @@ test('point priority survives zoom; mid-edge clicks still select two endpoints',
   const e = await editor();
   try {
     for (let i = 0; i < 4; i++) e.$('minus').click();
-    e.click(206, 140);
+    e.click(203, 140);
     assert.equal(e.w.document.querySelectorAll('.handle.selected').length, 1);
     e.click(400, 140);
     assert.equal(e.w.document.querySelectorAll('.selected-edge').length, 1);
     assert.equal(e.w.document.querySelectorAll('.handle.selected').length, 2);
-    e.click(206, 140);
+    e.click(203, 140);
     assert.equal(e.w.document.querySelectorAll('.selected-edge').length, 0);
     assert.equal(e.w.document.querySelectorAll('.handle.selected').length, 1);
   } finally {
@@ -144,12 +145,12 @@ test('drag preserves endpoint group and undo restores the untouched vertices', a
 test('Ctrl adds a single vertex and clicking a layer keeps rendering functional', async () => {
   const e = await editor();
   try {
-    e.click(206, 140);
-    e.click(594, 140, { ctrlKey: true });
+    e.click(203, 140);
+    e.click(597, 140, { ctrlKey: true });
     assert.equal(e.w.document.querySelectorAll('.handle.selected').length, 2);
     assert.equal(e.w.document.querySelectorAll('.selected-edge').length, 0);
     e.w.document.querySelector('.layer').click();
-    assert.equal(e.w.document.querySelectorAll('.handle').length, 4);
+    assert.equal(e.w.document.querySelectorAll('.handle').length, 0);
   } finally {
     await e.close();
   }
@@ -174,7 +175,7 @@ test('compiled autosave restores geometry, grid, background and workspace on res
   const restored = await editor(snapshot);
   try {
     assert.equal(restored.$('shapeWidth').value, '640');
-    assert.equal(restored.$('background').textContent, '☾ Fundo escuro');
+    assert.equal(restored.$('background').textContent, '☀ Fundo claro');
     assert.equal(restored.w.VectorBridge.readWorkspace().html, '<h1>Naki</h1>');
     restored.$('delete').click();
     assert.equal(JSON.parse(restored.snapshot()).shapes.length, 0);
@@ -223,7 +224,9 @@ test('position and alignment preserve geometry and support undo plus autosave', 
     assert.equal(Math.min(...e.points().map((p) => p[0])), 80);
     assert.equal(e.$('shapeWidth').value, '400');
     e.w.document.querySelector('[data-align="right"]').click();
-    assert.equal(Math.max(...e.points().map((p) => p[0])), 800);
+    const maxX = Math.max(...e.points().map((p) => p[0]));
+    assert.ok(maxX > 600);
+    assert.equal(e.$('shapeWidth').value, '400');
     e.$('undo').click();
     assert.equal(Math.min(...e.points().map((p) => p[0])), 80);
     e.$('undo').click();

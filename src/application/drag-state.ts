@@ -16,6 +16,13 @@ interface DragBase {
 }
 export type DragState = DragBase &
   (
+    | {
+        kind: 'draw';
+        start: Point;
+        shapeType: import('../domain/models').DrawTool;
+        shapeId: string;
+        shapes: Shape[];
+      }
     | { kind: 'pan'; start: Point; view: View; shapes?: Shape[] }
     | { kind: 'resize'; corner: number; start: Point; shapes: Shape[] }
     | {

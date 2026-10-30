@@ -8,7 +8,7 @@ function color(value: string | null, fallback: string) {
   return value.length === 4 ? '#' + [...value.slice(1)].map((c) => c + c).join('') : value;
 }
 export function parseCode(text: string, shapes: Shape[] = []) {
-  if (text.length > 2000000) throw Error('Código muito grande.');
+  if (text.length > 50_000_000) throw Error('Código muito grande.');
   const doc = new DOMParser().parseFromString(text, 'application/xml');
   if (doc.querySelector('parsererror')) {
     const text = doc.querySelector('parsererror')!.textContent || '';
@@ -22,19 +22,25 @@ export function parseCode(text: string, shapes: Shape[] = []) {
     doc.documentElement.localName === 'svg' ? doc.documentElement : doc.querySelector('svg');
   if (!svg) throw Error('Inclua um elemento <svg>.');
   const box = svg.getAttribute('viewBox');
-  if (
-    box &&
-    box
+  if (box) {
+    const numbers = box
       .trim()
       .split(/[\s,]+/)
-      .map(Number)
-      .join(' ') !== '0 0 800 500'
-  )
-    throw Error('A prancheta usa viewBox="0 0 800 500". Ajuste as coordenadas dos pontos no path.');
-  const children = [...svg.children].filter((n) => !['title', 'desc'].includes(n.localName));
+      .map(Number);
+    if (
+      numbers.length !== 4 ||
+      !numbers.every(Number.isFinite) ||
+      numbers[2] <= 0 ||
+      numbers[3] <= 0
+    )
+      throw Error('viewBox inválido.');
+  }
+  const children = [...svg.children].filter(
+    (n) => !['title', 'desc', 'defs'].includes(n.localName),
+  );
   if (children.length > 100) throw Error('Limite de 100 formas.');
   return children.map((node, i) => {
-    if (!['path', 'polygon', 'rect'].includes(node.localName))
+    if (!['path', 'polygon', 'rect', 'ellipse', 'line', 'image', 'g'].includes(node.localName))
       throw Error(
         'Use path, polygon ou rect. Grupos, curvas e outros elementos ainda não são suportados.',
       );
@@ -49,13 +55,73 @@ export function parseCode(text: string, shapes: Shape[] = []) {
     )
       throw Error('Use atributos diretos de cor e coordenadas, sem style, transform ou eventos.');
     const old = shapes.find((s) => s.id === node.getAttribute('id')) || shapes[i];
+    const editorType = (node.getAttribute('data-editor-type') || 'custom') as ShapeType;
+    let media: Shape['media'];
     let pts: Ring,
       polygons: Shape['polygons'],
       radius = 0,
       radiusUnit: RadiusUnit = 'px',
       cornerRadii: Shape['cornerRadii'],
       regeneratePath = false;
-    if (
+    if (['image', 'video'].includes(editorType) || node.localName === 'image') {
+      const isVideo = editorType === 'video';
+      const content = isVideo
+        ? node.querySelector('video')
+        : node.localName === 'image'
+          ? node
+          : node.querySelector('image');
+      if (!content) throw Error('Mídia ausente.');
+      const boundsNode = node.localName === 'g' ? node.firstElementChild! : node;
+      const vertices = node.getAttribute('data-vertices');
+      pts = vertices
+        ? JSON.parse(vertices)[0][0]
+        : G.points(
+            'rectangle',
+            Number(boundsNode.getAttribute('x') || 0),
+            Number(boundsNode.getAttribute('y') || 0),
+            Number(boundsNode.getAttribute('width')),
+            Number(boundsNode.getAttribute('height')),
+          );
+      media = {
+        ...JSON.parse(node.getAttribute('data-media') || '{}'),
+        src: content.getAttribute(isVideo ? 'src' : 'href') || '',
+        mime:
+          JSON.parse(node.getAttribute('data-media') || '{}').mime ||
+          (content.getAttribute('href') || '').match(/^data:([^;]+)/)?.[1] ||
+          '',
+      };
+    } else if (node.localName === 'ellipse') {
+      const cx = Number(node.getAttribute('cx')),
+        cy = Number(node.getAttribute('cy')),
+        rx = Number(node.getAttribute('rx')),
+        ry = Number(node.getAttribute('ry'));
+      if (!(rx > 0 && ry > 0)) throw Error('Raio da elipse inválido.');
+      pts = G.points('rectangle', cx - rx, cy - ry, rx * 2, ry * 2);
+    } else if (node.localName === 'line') {
+      pts = [
+        [Number(node.getAttribute('x1')), Number(node.getAttribute('y1'))],
+        [Number(node.getAttribute('x2')), Number(node.getAttribute('y2'))],
+      ];
+    } else if (
+      node.hasAttribute('data-vertices') &&
+      ['ellipse', 'line', 'arrow'].includes(editorType)
+    ) {
+      pts = JSON.parse(node.getAttribute('data-vertices') || 'null')[0][0];
+      if (editorType === 'line' || editorType === 'arrow') {
+        const d = node.getAttribute('d') || '',
+          oldPath = old ? G.shapePath(old) : '';
+        if (d !== oldPath) {
+          const segment = d.match(
+            /^\s*M\s*([-+\d.eE]+)[ ,]+([-+\d.eE]+)\s*L\s*([-+\d.eE]+)[ ,]+([-+\d.eE]+)/,
+          );
+          if (segment)
+            pts = [
+              [Number(segment[1]), Number(segment[2])],
+              [Number(segment[3]), Number(segment[4])],
+            ];
+        }
+      }
+    } else if (
       node.localName === 'path' &&
       node.hasAttribute('data-vertices') &&
       /[Aa]/.test(node.getAttribute('d') || '')
@@ -112,7 +178,24 @@ export function parseCode(text: string, shapes: Shape[] = []) {
     const s: Shape = {
       ...make('rectangle'),
       id: node.getAttribute('id') || old?.id || crypto.randomUUID(),
-      type: 'custom',
+      type: media
+        ? editorType === 'video'
+          ? 'video'
+          : 'image'
+        : node.localName === 'ellipse'
+          ? 'ellipse'
+          : node.localName === 'line'
+            ? 'line'
+            : ['ellipse', 'line', 'arrow', 'star'].includes(editorType)
+              ? editorType
+              : 'custom',
+      media,
+      locked: node.getAttribute('data-locked') === 'true',
+      hidden: node.getAttribute('data-hidden') === 'true',
+      shadow: node.getAttribute('data-shadow') === 'true',
+      group: node.hasAttribute('data-group')
+        ? JSON.parse(node.getAttribute('data-group') || 'null')
+        : undefined,
       name: (node.getAttribute('aria-label') || old?.name || 'Forma ' + (i + 1)).slice(0, 80),
       points: pts,
       radius,
@@ -123,9 +206,9 @@ export function parseCode(text: string, shapes: Shape[] = []) {
     if (regeneratePath) Object.defineProperty(s, 'regeneratePath', { value: true });
     const attr = (key: string) => node.getAttribute(key) ?? svg.getAttribute(key);
     const fill = attr('fill');
-    s.noFill = fill === 'none';
-    s.fill = color(s.noFill ? null : fill, old?.fill || '#222427');
-    s.stroke = color(attr('stroke') === 'none' ? null : attr('stroke'), old?.stroke || '#ff9b20');
+    s.noFill = fill === 'none' || ['line', 'arrow'].includes(s.type);
+    s.fill = color(s.noFill ? null : fill, old?.fill || '#d9d9d9');
+    s.stroke = color(attr('stroke') === 'none' ? null : attr('stroke'), old?.stroke || '#737373');
     s.strokeWidth = attr('stroke') === 'none' ? 0 : Number(attr('stroke-width') ?? 2);
     s.opacity = Number(attr('opacity') ?? 1) * 100;
     s.join = (attr('stroke-linejoin') || 'miter') as Shape['join'];

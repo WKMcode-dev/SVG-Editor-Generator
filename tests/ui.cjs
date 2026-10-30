@@ -14,6 +14,8 @@ const assert = require('node:assert/strict'),
     page.on('pageerror', (e) => e.message !== 'Canceled' && errors.push(e.message));
     page.on('download', (d) => downloads.push(d));
     await page.goto(require('./browser-helper.cjs').editorURL);
+    await page.waitForSelector('.shape');
+    await page.click('#editPoints');
     const pointOnScreen = async (x, y) =>
       page.evaluate(
         ([x, y]) => {
@@ -28,6 +30,7 @@ const assert = require('node:assert/strict'),
       );
     const clickAt = async (x, y, twice = false) => {
       const [cx, cy] = await pointOnScreen(x, y);
+      if (twice && (await page.locator('.handle').count()) === 0) await page.mouse.dblclick(cx, cy);
       await page.mouse[twice ? 'dblclick' : 'click'](cx, cy);
     };
     const dragPoint = async (index, x, y) => {
@@ -47,10 +50,14 @@ const assert = require('node:assert/strict'),
     await page.click('#export');
     assert.equal(downloads.length, 0);
     assert.match(await page.locator('#toast').innerText(), /ao menos uma forma/);
+    await page.click('#assetsTab');
     await page.click('[data-type="rectangle"]');
+    await page.click('#fileTab');
+    await page.click('#editPoints');
     assert.equal(await page.locator('.handle').count(), 4);
     assert.equal(await firstX(), 200);
-    await clickAt(50, 50);
+    const canvasBox = await page.locator('#canvas').boundingBox();
+    await page.mouse.click(canvasBox.x + 20, canvasBox.y + 20);
     assert.equal(await page.locator('.handle').count(), 0);
     assert.equal(await page.locator('.shape').count(), 1);
     await clickAt(400, 140, true);
@@ -60,6 +67,7 @@ const assert = require('node:assert/strict'),
     await page.click('#undo');
     assert.equal(await page.locator('.handle').count(), 4);
     await page.click('.layer');
+    await page.click('#editPoints');
     assert.equal(await page.locator('.handle').count(), 4);
     await page.check('#noFill');
     await clickAt(600, 250, true);
@@ -90,12 +98,13 @@ const assert = require('node:assert/strict'),
     assert.ok(Math.abs((await firstX()) - 213.3) < 0.1);
     await page.click('#code');
     await page.waitForFunction(() => !!window.CodeWorkbench);
+    await page.click('#fit');
     assert.equal(await page.locator('#source').getAttribute('readonly'), null);
     const source = await page.locator('#source').inputValue();
     assert.match(source, /\n            M/);
     await page.evaluate(
       (text) => window.CodeWorkbench.setValue('svg', text),
-      source.replace(/M [^\n]+/, 'M 180 120').replace('stroke="#ff9b20"', 'stroke="#00aaff"'),
+      source.replace(/M [^\n]+/, 'M 180 120').replace(/stroke="#[0-9a-f]{6}"/i, 'stroke="#00aaff"'),
     );
     await page.waitForFunction(() =>
       document.querySelector('#codeStatus').textContent.includes('mapa atualizado'),
@@ -117,7 +126,13 @@ const assert = require('node:assert/strict'),
     assert.match(await page.locator('#source').inputValue(), /            M 180 120/);
     // Code panel stays beside the canvas; graphical changes synchronize back into the text.
     await dragPoint(0, 190, 130);
-    assert.match(await page.locator('#source').inputValue(), /M 190 130/);
+    const changed = [
+      Number(await page.locator('.handle').first().getAttribute('cx')),
+      Number(await page.locator('.handle').first().getAttribute('cy')),
+    ];
+    assert.ok(Math.abs(changed[0] - 190) < 1 && Math.abs(changed[1] - 130) < 1);
+    const changedPattern = new RegExp('M ' + changed.join(' '));
+    assert.match(await page.locator('#source').inputValue(), changedPattern);
     await page.screenshot({ path: 'tests/ui-preview.png' });
     await page.click('#close');
     const saved = page.waitForEvent('download');
@@ -128,7 +143,7 @@ const assert = require('node:assert/strict'),
     const exported = page.waitForEvent('download');
     await page.click('#export');
     const xml = fs.readFileSync(await (await exported).path(), 'utf8');
-    assert.match(xml, /M 190 130/);
+    assert.match(xml, changedPattern);
     assert.ok(!xml.includes('pattern'));
     await page.click('#delete');
     assert.equal(await page.locator('.shape').count(), 0);
@@ -148,7 +163,8 @@ const assert = require('node:assert/strict'),
       buffer: Buffer.from(JSON.stringify(json)),
     });
     await page.waitForSelector('.shape');
-    assert.equal(await firstX(), 190);
+    await page.click('#editPoints');
+    assert.equal(await firstX(), changed[0]);
     assert.equal(await page.locator('#dotPattern').getAttribute('width'), '32');
     assert.equal(await page.locator('#stepX').inputValue(), '8');
     assert.deepEqual(errors, []);

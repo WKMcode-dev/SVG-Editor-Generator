@@ -1,4 +1,4 @@
-# SVG Editor Generator 1.9.0
+# SVG Editor Generator 2.0.0
 
 Editor visual de SVG em **TypeScript + Tauri 2/Rust**, com pontos arrastáveis, cantos arredondados, operações booleanas e edição SVG/HTML/CSS no Monaco.
 
@@ -13,27 +13,37 @@ A versão web funciona no navegador. No Windows x64, baixe o instalador NSIS da 
 
 As formas, a grade, o fundo, o HTML/CSS e as preferências do Monaco têm salvamento automático local. Não é necessário apertar Ctrl+S para isso. Cada navegador/origem e o aplicativo instalado têm perfis independentes. Não apague os dados do navegador/perfil se quiser preservar o salvamento automático. Salvar projeto gera um JSON para transportar ou fazer backup do projeto editável.
 
-## Espaço de trabalho
+## Espaço de trabalho 2.0
 
-Interface organizada em camadas à esquerda, ferramentas no topo, canvas central e inspetor à direita. As seções Aparência e Editar pontos e cantos podem ser recolhidas. A organização é inspirada em editores de interface como Figma, com a identidade visual do SVG Generator.
+Canvas livre, sem moldura ou prancheta fixa de 800 × 500. O SVG é exportado com viewBox calculado pelos limites das camadas visíveis, incluindo a borda. Os painéis usam uma paleta clara e neutra e a seleção usa azul; novas formas têm preenchimento e contorno cinza. As cores de projetos existentes são preservadas.
 
-- Busque camadas pelo nome. Duplo clique em uma camada seleciona seu nome para edição no inspetor.
-- Subir e Descer alteram a ordem de empilhamento; também funcionam com várias formas selecionadas.
-- Posição X/Y move a forma inteira sem deformar seus pontos.
-- Os seis alinhamentos usam a prancheta quando há uma forma; com várias, usam os limites da seleção.
-- Enquadrar mostra a prancheta; Seleção aproxima as formas selecionadas.
-- As setas movem a forma inteira. Com pontos ou segmentos explicitamente selecionados, movem apenas esses pontos.
-- O botão ? abre a lista de atalhos. Alterações de geometria e camadas têm desfazer/refazer e salvamento automático.
+A barra flutuante fica centralizada na parte inferior do canvas. O menu de formas oferece retângulo, elipse, linha, seta, polígono e estrela. Escolha uma ferramenta e arraste; Shift restringe retângulos e elipses a quadrados e círculos, e linhas a ângulos de 45°. Os presets ficam na aba Recursos, com formas prontas e presets pessoais salvos neste navegador.
 
-## Ferramentas
+Um clique seleciona a forma para mover e redimensionar. Duplo clique ou Enter abre a edição de pontos; Esc retorna à seleção normal. A ferramenta de segmentos usa Shift+V. Elipses são convertidas para 96 vértices ao entrar na edição de pontos; desfazer recupera a elipse original.
 
-Clique na forma ou camada para selecionar. Arraste os pontos ou a forma. Clique duas vezes na borda para inserir um ponto. Pontos visíveis têm prioridade num raio de 8 px na tela; clique simples seleciona só o ponto mais próximo, e arrastar um ponto já selecionado preserva o grupo. Duplo clique junto a um ponto existente não cria outro.
+O painel esquerdo permite buscar, renomear por duplo clique no nome, agrupar/desagrupar, recolher grupos, mudar empilhamento, ocultar e bloquear camadas. Camadas bloqueadas ficam protegidas contra arraste, setas, exclusão e operações booleanas; o controle de cadeado permite desbloqueá-las. Os controles de visibilidade e bloqueio também funcionam no grupo inteiro.
 
-Use Shift/Ctrl para selecionar vários pontos, linhas ou formas. O modo Linhas permite adicionar segmentos sem segurar a tecla. Arraste no vazio para selecionar por área. As operações União, Subtrair, Interseção, Excluir sobreposição e Achatar preservam vazados/regiões separadas e podem ser desfeitas.
+O inspetor organiza Posição, Layout, Aparência, Preenchimento, Borda, Efeitos e Exportação. Inclui X/Y da forma, dimensões e proporção, seis alinhamentos, rotação incremental de vetores, espelhamento, opacidade, raio, sombra suave e edição de vértices. Rotação de mídia está desativada; espelhamento e redimensionamento estão disponíveis. Uma forma é alinhada ao canvas visível; várias são alinhadas aos limites da seleção. O botão Ver código SVG permanece na seção Exportação.
 
-Largura, altura, proporção, preenchimento, borda, opacidade e raio dos cantos são editáveis. O raio pode ser aplicado a vértices específicos, em px ou %. O ímã tem passo X/Y e origem independentes da célula visual da grade. Espaço + arraste ou botão central move a câmera; Ctrl + roda amplia no cursor.
+## Imagens e vídeos
 
-O Monaco oferece abas SVG, HTML, CSS e Prévia, temas, autocomplete, diagnósticos, busca, formatação e correções conservadoras. A prévia não executa scripts nem carrega recursos externos. Exportar SVG preserva transparência; exportar HTML incorpora o CSS em um arquivo independente.
+Ctrl+Shift+K ou o menu de formas abre o seletor de mídia. Aceita PNG, JPEG, WebP, GIF, AVIF, MP4, WebM e OGG, até 12 MB por arquivo e cerca de 24 MB de mídia no projeto. Vídeos possuem reprodução/pausa no inspetor e controles nativos. A reprodução depende dos codecs suportados pelo navegador/WebView2.
+
+Os arquivos são incorporados ao projeto. Salvamentos maiores usam IndexedDB; os menores continuam em localStorage. O indicador confirma o término do salvamento. O histórico limita sua memória quando há mídia grande. Não apague os dados do navegador ou do aplicativo se quiser preservar projetos e presets. Salvar projeto gera um JSON transportável; o navegador e o desktop têm perfis independentes.
+
+Imagens são exportadas como elementos image com dados incorporados. Vídeos usam foreignObject no SVG e funcionam em navegadores compatíveis; para compartilhar a reprodução, prefira Exportar HTML. Visualizadores de imagens SVG que não implementam foreignObject podem não exibir vídeo. A prévia HTML não executa scripts nem permite buscar recursos externos.
+
+## Navegação e atalhos
+
+- V: seleção; H ou Espaço + arraste: mover câmera; Enter/duplo clique: editar pontos; Esc: sair da edição.
+- R: retângulo; O: elipse; L: linha; Shift+L: seta; Ctrl+Shift+K: inserir mídia.
+- Ctrl+A: selecionar camadas desbloqueadas e visíveis; Ctrl+D: duplicar.
+- Ctrl+G / Ctrl+Shift+G: agrupar/desagrupar; Ctrl+Shift+L: bloquear/desbloquear; Ctrl+Shift+H: ocultar/mostrar.
+- Ctrl+] / Ctrl+[: subir/descer; Ctrl+Z / Ctrl+Shift+Z: desfazer/refazer; Delete: excluir; Ctrl+S: salvar JSON.
+- Shift+1 / Shift+2: enquadrar tudo/seleção; M: ímã; Shift+V: selecionar segmentos; ?: ajuda.
+- A pinça do touchpad usa Ctrl+wheel; gestos WebKit e dois ponteiros touch também são tratados. Roda com Ctrl ou Cmd amplia no cursor; rolagem de dois dedos move o canvas. Botão central também move a câmera. Redimensionar a janela ou os painéis preserva o zoom.
+
+As operações booleanas União, Subtrair, Interseção, Excluir sobreposição e Achatar trabalham com formas vetoriais fechadas. Linhas, setas e mídia ficam fora dessas operações. A precisão de clique prioriza o ponto mais próximo em 8 px de tela durante a edição.
 
 ## Desenvolvimento
 
@@ -72,7 +82,7 @@ Para os testes de navegador, execute npm run build:web, npm run build:tests e np
 
 ## Publicação
 
-O workflow de validação confere tipos, testes e build web. O workflow Windows executa os testes Rust, gera o instalador e abre o executável no WebView2 para verificar a interface e o Monaco. GitHub Pages publica dist ao atualizar main. Uma tag correspondente à versão, como v1.9.0, ou uma nova nota docs/release-v\*.md em main inicia a release: os arquivos só são publicados depois de passar pelos testes e pela compilação Windows.
+O workflow de validação confere tipos, testes e build web. O workflow Windows executa os testes Rust, gera o instalador e abre o executável no WebView2 para verificar a interface e o Monaco. GitHub Pages publica dist ao atualizar main. Uma tag correspondente à versão, como v2.0.0, ou uma nova nota docs/release-v\*.md em main inicia a release: os arquivos só são publicados depois de passar pelos testes e pela compilação Windows.
 
 ## Atalhos
 
@@ -83,7 +93,7 @@ O workflow de validação confere tipos, testes e build web. O workflow Windows 
 
 ## Limitações
 
-Prancheta de 800 × 500, até 100 formas e 1.000 vértices por forma. Curvas livres importadas não são convertidas em vértices editáveis. Não há atualização automática. O perfil antigo do Electron não é migrado.
+Até 100 camadas e 1.000 vértices por forma, com coordenadas entre −100.000 e 100.000. Curvas livres importadas não são convertidas em vértices editáveis. Não há atualização automática. O perfil antigo do Electron não é migrado.
 
 ## Licenças
 

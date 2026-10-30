@@ -29,6 +29,8 @@ const shape = (id, x, y, w, h) => ({
       errors = [];
     page.on('pageerror', (e) => errors.push(e.message));
     await page.goto(require('./browser-helper.cjs').editorURL);
+    await page.waitForSelector('.shape');
+    await page.click('#editPoints');
     await page.waitForSelector('.handle');
     const screen = async (x, y) =>
       page.evaluate(
@@ -75,6 +77,7 @@ const shape = (id, x, y, w, h) => ({
           document.querySelectorAll('.shape').length === 2 &&
           document.getElementById('title').textContent === 'A',
       );
+      await page.click('#editPoints');
     };
     await load();
     await page.click('#lineSelect');
@@ -112,6 +115,7 @@ const shape = (id, x, y, w, h) => ({
     ]);
     await load();
     await page.click('#select');
+    await page.click('#editPoints');
     await click(275, 140);
     await click(350, 190, 'Control');
     assert.equal(await page.locator('.selected-edge').count(), 2);
@@ -125,6 +129,7 @@ const shape = (id, x, y, w, h) => ({
     ]);
     await load();
     await page.click('#select');
+    await page.click('#editPoints');
     await page.mouse.move(...(await screen(150, 100)));
     await page.mouse.down();
     await page.mouse.move(...(await screen(380, 170)), { steps: 6 });
@@ -196,6 +201,7 @@ const shape = (id, x, y, w, h) => ({
       [200, 240],
     ]);
     await page.locator('.layer').filter({ hasText: 'A' }).click();
+    await page.click('#editPoints');
     await page.mouse.move(...(await screen(200, 140)));
     await page.mouse.down();
     await page.mouse.move(...(await screen(220, 160)), { steps: 5 });
