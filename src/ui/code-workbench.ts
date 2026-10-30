@@ -100,7 +100,7 @@ $('editorTheme').value = ['vs-dark', 'vs', 'quiet-paper', 'orange-night', 'hc-bl
   saved.theme,
 )
   ? saved.theme
-  : 'orange-night';
+  : 'vs';
 $('autoRepair').checked = saved.autoRepair !== false;
 const editor = monaco.editor.create($('monacoHost'), {
   model: models.svg,
@@ -167,6 +167,11 @@ Object.defineProperty($('source'), 'value', {
       schedulePreview(false);
     }
   },
+});
+window.addEventListener('vector-visual-change', () => {
+  clearTimeout(repairTimer);
+  $('source').value = bridge.svg();
+  save();
 });
 function diagnostics() {
   const value = models.svg.getValue(),
@@ -409,7 +414,7 @@ monaco.languages.registerCompletionItemProvider('html', {
           label: 'svg-path',
           kind: monaco.languages.CompletionItemKind.Snippet,
           insertText:
-            'path d="M ${1:100} ${2:100} L ${3:300} ${2:100} L ${3:300} ${4:200} Z" fill="${5:#222427}" stroke="${6:#d99046}" />',
+            'path d="M ${1:100} ${2:100} L ${3:300} ${2:100} L ${3:300} ${4:200} Z" fill="${5:#222427}" stroke="${6:#737373}" />',
           insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
           range,
         },
@@ -436,7 +441,7 @@ function loadWorkspace(files: Workspace) {
     files.theme,
   )
     ? files.theme
-    : 'orange-night';
+    : 'vs';
   monaco.editor.setTheme($('editorTheme').value);
   $('autoRepair').checked = files.autoRepair !== false;
   diagnostics();
