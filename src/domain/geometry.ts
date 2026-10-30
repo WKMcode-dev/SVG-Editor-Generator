@@ -10,8 +10,36 @@ import type {
   Project,
   PointHit,
 } from './models';
-const TYPES = ['rectangle', 'triangle', 'hexagon', 'diamond', 'custom', 'panel', 'tag'];
+const TYPES = [
+  'rectangle',
+  'triangle',
+  'hexagon',
+  'diamond',
+  'custom',
+  'panel',
+  'tag',
+  'ellipse',
+  'line',
+  'arrow',
+  'star',
+  'image',
+  'video',
+];
 function points(type: ShapeType, x = 200, y = 140, w = 400, h = 220): Ring {
+  if (type === 'line' || type === 'arrow')
+    return [
+      [x, y],
+      [x + w, y + h],
+    ];
+  if (type === 'star')
+    return Array.from({ length: 10 }, (_, i) => {
+      const a = -Math.PI / 2 + (i * Math.PI) / 5,
+        r = i % 2 ? 0.43 : 1;
+      return [
+        round(x + w / 2 + ((Math.cos(a) * w) / 2) * r),
+        round(y + h / 2 + ((Math.sin(a) * h) / 2) * r),
+      ] as Point;
+    });
   if (type === 'triangle')
     return [
       [x + w / 2, y],
@@ -122,10 +150,78 @@ function ringRadii(s: Shape, ring: RingReference) {
     return c ? c.value * (c.unit === '%' ? Math.min(b.width, b.height) / 100 : 1) : radiusPx(s);
   });
 }
-const shapePath = (s: Shape) =>
-  rings(s)
+function shapePath(s: Shape): string {
+  if (s.type === 'ellipse') {
+    const b = bounds(s),
+      cx = b.x + b.width / 2,
+      cy = b.y + b.height / 2;
+    return `M ${b.x} ${cy} A ${b.width / 2} ${b.height / 2} 0 1 0 ${b.x + b.width} ${cy} A ${b.width / 2} ${b.height / 2} 0 1 0 ${b.x} ${cy} Z`;
+  }
+  if (s.type === 'line' || s.type === 'arrow') {
+    const [a, b] = s.points;
+    let d = `M ${a.join(' ')} L ${b.join(' ')}`;
+    if (s.type === 'arrow') {
+      const angle = Math.atan2(b[1] - a[1], b[0] - a[0]),
+        size = Math.min(
+          Math.hypot(b[0] - a[0], b[1] - a[1]) * 0.4,
+          Math.max(10, s.strokeWidth * 4),
+        );
+      const wing = (n: number) =>
+        [round(b[0] - Math.cos(angle + n) * size), round(b[1] - Math.sin(angle + n) * size)].join(
+          ' ',
+        );
+      d += ` M ${wing(0.48)} L ${b.join(' ')} L ${wing(-0.48)}`;
+    }
+    return d;
+  }
+  return rings(s)
     .map((r) => roundedPath(r.points, s.cornerRadii ? ringRadii(s, r) : radiusPx(s)))
     .join(' ');
+}
+function vectorShape(s: Shape) {
+  return !s.media && !['line', 'arrow'].includes(s.type);
+}
+function editablePoints(s: Shape) {
+  return !s.media && s.type !== 'ellipse';
+}
+function polygonize(s: Shape): void {
+  if (s.type === 'ellipse') {
+    const b = bounds(s);
+    s.points = Array.from({ length: 96 }, (_, i) => {
+      const a = (i * Math.PI * 2) / 96;
+      return [
+        round(b.x + b.width / 2 + (Math.cos(a) * b.width) / 2),
+        round(b.y + b.height / 2 + (Math.sin(a) * b.height) / 2),
+      ] as Point;
+    });
+    s.type = 'custom';
+  }
+}
+function exportBounds(shapes: Shape[]) {
+  const visible = shapes.filter((s) => !s.hidden);
+  if (!visible.length) return { x: 0, y: 0, width: 1, height: 1 };
+  const boxes = visible.map((s) => {
+    const b = bounds(s),
+      p = s.shadow ? 20 : s.type === 'arrow' ? 12 : s.strokeWidth / 2;
+    return { x: b.x - p, y: b.y - p, width: b.width + 2 * p, height: b.height + 2 * p };
+  });
+  const x = Math.floor(Math.min(...boxes.map((b) => b.x))),
+    y = Math.floor(Math.min(...boxes.map((b) => b.y)));
+  return {
+    x,
+    y,
+    width: Math.max(1, Math.ceil(Math.max(...boxes.map((b) => b.x + b.width)) - x)),
+    height: Math.max(1, Math.ceil(Math.max(...boxes.map((b) => b.y + b.height)) - y)),
+  };
+}
+function mediaMarkup(s: Shape): string {
+  const b = bounds(s),
+    src = escape(s.media!.src),
+    transform = `translate(${s.media?.flipX ? 2 * b.x + b.width : 0} ${s.media?.flipY ? 2 * b.y + b.height : 0}) scale(${s.media?.flipX ? -1 : 1} ${s.media?.flipY ? -1 : 1})`;
+  if (s.type === 'image')
+    return `<image x="${b.x}" y="${b.y}" width="${b.width}" height="${b.height}" href="${src}" preserveAspectRatio="none" transform="${transform}" />`;
+  return `<foreignObject x="${b.x}" y="${b.y}" width="${b.width}" height="${b.height}" transform="${transform}"><video xmlns="http://www.w3.org/1999/xhtml" src="${src}" width="${b.width}" height="${b.height}" controls="" muted="" loop="" playsinline="" style="width:100%;height:100%;object-fit:fill"></video></foreignObject>`;
+}
 function sampledRing(vertices: Ring, radius: number | number[]): Ring {
   if (!radius) return vertices;
   return corners(vertices, radius).flatMap((c) => {
@@ -162,6 +258,13 @@ function mapShape(s: Shape, fn: (point: Point) => Point) {
 }
 function resize(s: Shape, width: number, height: number) {
   const b = bounds(s);
+  if (s.type === 'line' || s.type === 'arrow') {
+    s.points = s.points.map((p, i) => [
+      round(b.x + (b.width ? ((p[0] - b.x) * width) / b.width : i * width)),
+      round(b.y + (b.height ? ((p[1] - b.y) * height) / b.height : i * height)),
+    ]);
+    return;
+  }
   if (!(width > 0 && height > 0 && b.width > 0 && b.height > 0))
     throw Error('A forma precisa de largura e altura positivas.');
   mapShape(s, (p) => [
@@ -211,6 +314,13 @@ function cleanPolygons(polygons: MultiPolygon) {
   );
 }
 function combine(op: BooleanOperation, shapes: Shape[]) {
+  if (shapes.some((s) => !vectorShape(s)))
+    throw Error('Combine somente formas vetoriais fechadas.');
+  shapes = shapes.map((s) => {
+    const copy = structuredClone(s);
+    polygonize(copy);
+    return copy;
+  });
   const inputs: MultiPolygon[] = shapes.map((s) =>
     (s.polygons || [[s.points]]).map((p, pi) =>
       p.map((r, ri) =>
@@ -223,11 +333,15 @@ function combine(op: BooleanOperation, shapes: Shape[]) {
   return cleanPolygons(clipping()[op === 'flatten' ? 'union' : op](first, ...rest));
 }
 function svg(shapes: Shape[]) {
-  const paths = shapes.map((s) =>
-    [
+  const box = exportBounds(shapes);
+  const elements = shapes.map((s) => {
+    const meta = `id="${escape(s.id)}" aria-label="${escape(s.name)}" data-editor-type="${s.type}" data-locked="${!!s.locked}" data-hidden="${!!s.hidden}" data-shadow="${!!s.shadow}"${s.group ? ` data-group="${escape(JSON.stringify(s.group))}"` : ''}`;
+    const vertices = `data-vertices="${escape(JSON.stringify(s.polygons || [[s.points]]))}"`;
+    if (s.media)
+      return `    <g ${meta} ${vertices} data-media="${escape(JSON.stringify({ mime: s.media.mime, flipX: s.media.flipX, flipY: s.media.flipY }))}" opacity="${s.opacity / 100}"${s.shadow ? ' filter="url(#editor-shadow)"' : ''}${s.hidden ? ' display="none"' : ''}>${mediaMarkup(s)}</g>`;
+    return [
       '    <path',
-      `        id="${escape(s.id)}"`,
-      `        aria-label="${escape(s.name)}"`,
+      `        ${meta}`,
       `        fill="${s.noFill ? 'none' : s.fill}"`,
       `        stroke="${s.stroke}"`,
       `        stroke-width="${s.strokeWidth}"`,
@@ -235,35 +349,56 @@ function svg(shapes: Shape[]) {
       '        stroke-miterlimit="20"',
       '        fill-rule="evenodd"',
       `        opacity="${s.opacity / 100}"`,
-      ...(s.radius || s.cornerRadii
+      ...(s.shadow ? ['        filter="url(#editor-shadow)"'] : []),
+      ...(s.hidden ? ['        display="none"'] : []),
+      ...(['ellipse', 'line', 'arrow'].includes(s.type) || s.radius || s.cornerRadii
         ? [
+            `        ${vertices}`,
             `        data-corner-radius="${s.radius || 0}"`,
             `        data-radius-unit="${s.radiusUnit || 'px'}"`,
-            `        data-vertices="${escape(JSON.stringify(s.polygons || [[s.points]]))}"`,
             ...(s.cornerRadii
               ? [`        data-corner-radii="${escape(JSON.stringify(s.cornerRadii))}"`]
               : []),
           ]
         : []),
       '        d="',
-      ...shapePath(s)
-        .match(/[MLAZ][^MLAZ]*/g)!
-        .map((command) => '            ' + command.trim()),
+      ...(shapePath(s).match(/[MLAZ][^MLAZ]*/g) || []).map((c) => '            ' + c.trim()),
       '        "',
       '    />',
-    ].join('\n'),
-  );
+    ].join('\n');
+  });
   return [
     '<svg',
     '    xmlns="http://www.w3.org/2000/svg"',
-    '    width="800"',
-    '    height="500"',
-    '    viewBox="0 0 800 500"',
+    `    width="${box.width}"`,
+    `    height="${box.height}"`,
+    `    viewBox="${box.x} ${box.y} ${box.width} ${box.height}"`,
     '    preserveAspectRatio="xMidYMid meet"',
     '>',
-    paths.join('\n\n'),
+    ...(shapes.some((s) => s.shadow)
+      ? [
+          '    <defs><filter id="editor-shadow" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="0" dy="4" stdDeviation="8" flood-opacity=".25"/></filter></defs>',
+        ]
+      : []),
+    elements.join('\n\n'),
     '</svg>',
   ].join('\n');
+}
+function validMedia(s: Shape): boolean {
+  if (!s.media) return !['image', 'video'].includes(s.type);
+  if (
+    !['image', 'video'].includes(s.type) ||
+    typeof s.media.src !== 'string' ||
+    s.media.src.length > 24_000_000
+  )
+    return false;
+  const allowed =
+    s.type === 'image' ? /^image\/(png|jpeg|webp|gif|avif)$/ : /^video\/(mp4|webm|ogg)$/;
+  return (
+    allowed.test(s.media.mime) &&
+    s.media.src.startsWith(`data:${s.media.mime};base64,`) &&
+    /^[A-Za-z0-9+/=]+$/.test(s.media.src.split(',')[1] || '')
+  );
 }
 function valid(d: unknown): d is Project {
   const validPoints = (list: unknown): list is Ring =>
@@ -303,7 +438,20 @@ function valid(d: unknown): d is Project {
         Number.isFinite(s.cut) &&
         s.cut >= 0 &&
         s.cut <= 80 &&
-        validPoints(s.points) &&
+        (['line', 'arrow'].includes(s.type)
+          ? Array.isArray(s.points) &&
+            s.points.length === 2 &&
+            validPoints([...s.points, s.points[0]])
+          : validPoints(s.points)) &&
+        validMedia(s) &&
+        (s.shadow === undefined || typeof s.shadow === 'boolean') &&
+        (s.locked === undefined || typeof s.locked === 'boolean') &&
+        (s.hidden === undefined || typeof s.hidden === 'boolean') &&
+        (!s.group ||
+          (typeof s.group.id === 'string' &&
+            s.group.id.length <= 120 &&
+            typeof s.group.name === 'string' &&
+            s.group.name.length <= 80)) &&
         (!s.polygons ||
           (Array.isArray(s.polygons) &&
             s.polygons.length > 0 &&
@@ -423,6 +571,12 @@ function nearest(vertices: Ring, p: Point) {
 }
 
 export {
+  vectorShape,
+  editablePoints,
+  polygonize,
+  exportBounds,
+  mediaMarkup,
+  validMedia,
   points,
   bevel,
   round,
