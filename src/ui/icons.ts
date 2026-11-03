@@ -1,4 +1,8 @@
 const paths: Record<string, string> = {
+  grip: 'M8 4h1M15 4h1M8 12h1M15 12h1M8 20h1M15 20h1',
+  link: 'M10 13a5 5 0 0 0 7 .4l3-3a5 5 0 0 0-7-7l-2 2M14 11a5 5 0 0 0-7-.4l-3 3a5 5 0 0 0 7 7l2-2',
+  unlink:
+    'M3 3L21 21M10 6l3-3a5 5 0 0 1 7 7l-2 2M6 10l-3 3a5 5 0 0 0 7 7l2-2M8 3V1M3 8H1M16 21v2M21 16h2',
   lock: 'M7 10V7a5 5 0 0 1 10 0v3M6 10h12v11H6ZM12 14v3',
   unlock: 'M7 10V7a5 5 0 0 1 9-3M6 10h12v11H6ZM12 14v3',
   eye: 'M2 12s4-7 10-7s10 7 10 7s-4 7-10 7s-10-7-10-7ZM15 12a3 3 0 1 0-6 0a3 3 0 1 0 6 0',

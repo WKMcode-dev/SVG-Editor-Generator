@@ -246,7 +246,7 @@ function exportBounds(shapes: Shape[]) {
   if (!visible.length) return { x: 0, y: 0, width: 1, height: 1 };
   const boxes = visible.map((s) => {
     const b = bounds(s),
-      p = s.shadow ? 20 : s.type === 'arrow' ? 12 : s.strokeWidth / 2;
+      p = s.shadow ? 20 : s.noStroke ? 0 : s.type === 'arrow' ? 12 : s.strokeWidth / 2;
     return { x: b.x - p, y: b.y - p, width: b.width + 2 * p, height: b.height + 2 * p };
   });
   const x = Math.floor(Math.min(...boxes.map((b) => b.x))),
@@ -392,7 +392,10 @@ function svg(shapes: Shape[]) {
         '    <path',
         `        ${meta}`,
         `        fill="${s.noFill ? 'none' : s.fill}"`,
-        `        stroke="${s.stroke}"`,
+        `        stroke="${s.noStroke ? 'none' : s.stroke}"`,
+        ...(s.noStroke
+          ? [`        data-stroke-disabled="true" data-stroke-color="${s.stroke}"`]
+          : []),
         `        stroke-width="${s.strokeWidth}"`,
         `        stroke-linejoin="${s.join}"`,
         '        stroke-miterlimit="20"',
@@ -497,6 +500,7 @@ function valid(d: unknown): d is Project {
         (s.shadow === undefined || typeof s.shadow === 'boolean') &&
         (s.locked === undefined || typeof s.locked === 'boolean') &&
         (s.hidden === undefined || typeof s.hidden === 'boolean') &&
+        (s.noStroke === undefined || typeof s.noStroke === 'boolean') &&
         (!s.group ||
           (typeof s.group.id === 'string' &&
             s.group.id.length <= 120 &&

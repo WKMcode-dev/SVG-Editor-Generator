@@ -1,4 +1,4 @@
-# SVG Editor Generator 2.1.0
+# SVG Editor Generator 2.2.0
 
 Editor visual de SVG em **TypeScript + Tauri 2/Rust**, com pontos arrastáveis, cantos arredondados, operações booleanas e edição SVG/HTML/CSS no Monaco.
 
@@ -112,3 +112,13 @@ Use pinça ou Ctrl/Command+rolagem para zoom. Deslizar dois dedos em qualquer di
 União, Subtração, Interseção, Exclusão e Achatar criam um grupo recolhível nas camadas. Expanda pela seta e selecione uma forma original para mover ou editar seus pontos; o resultado recalcula em tempo real. O contorno rosa mostra a forma selecionada, inclusive o recorte da subtração. Selecione o nome do grupo para mover, redimensionar ou girar todas as formas. Ctrl+Shift+G desfaz o grupo e recupera as fontes. A estrutura é preservada no projeto JSON, no autosave, nos presets e nos metadados do SVG; outros visualizadores desenham somente o resultado. Grupos vazios continuam editáveis pelas camadas. O limite de 100 camadas inclui grupos e fontes.
 
 As guias rosas consideram vértices, meios de segmentos e centros das formas nos eixos X/Y. O encaixe inteligente usa a posição anterior ao ajuste na grade e uma tolerância de 6 pixels de tela; Alt ignora as guias. Ctrl/Command+rolagem amplia suavemente no cursor, com variação limitada por evento; rolagem simples move o canvas.
+
+## Transformações e camadas
+
+O ícone de corrente ao lado de W/H trava a proporção. Skew X e Y aplica inclinação em graus à seleção vetorial; cada aplicação volta o campo a 0 e pode ser desfeita. Arraste uma camada para cima/baixo para alterar a pilha. A alça também funciona no toque e aceita setas do teclado. Mover entre grupos diferentes mantém os grupos inteiros; fontes booleanas só são reordenadas dentro do próprio grupo. O botão ao lado de Borda desativa o traço sem esquecer a cor e a espessura.
+
+## Notebook e mobile
+
+O desktop habilita a entrada de zoom do WebView2 e deixa o canvas tratar a pinça, Ctrl+wheel e Ctrl+/-; Ctrl+0 restaura a escala da câmera. Rolagem de dois dedos continua movendo o canvas. Os testes nativos usam gestos sintetizados no executável Windows; o driver físico precisa ser confirmado no notebook.
+
+Em telas de até 760 px, os painéis abrem pelos botões do cabeçalho sobre o canvas. Toque fora para fechar. A barra de desenho usa duas linhas, os campos têm tamanho para toque e o editor de código ocupa a tela. Use a alça de cada camada para reorganizar sem impedir a rolagem normal da lista.

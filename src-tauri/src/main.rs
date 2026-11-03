@@ -36,6 +36,9 @@ fn main() {
             tauri::WebviewWindowBuilder::from_config(app.handle(), &app.config().app.windows[0])?
                 .on_navigation(move |url| navigation::allowed(url, dev_url.as_ref()))
                 .on_new_window(|_, _| tauri::webview::NewWindowResponse::Deny)
+                // Enable WebView2 input routing for precision touchpad pinch.
+                // The canvas cancels native page zoom and owns its camera scale.
+                .zoom_hotkeys_enabled(true)
                 .enable_clipboard_access()
                 .build()?;
             Ok(())

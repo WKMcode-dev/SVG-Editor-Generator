@@ -6,6 +6,7 @@ server.listen(0, '127.0.0.1', async () => {
   const { spawn } = require('node:child_process');
   let failed = false;
   for (const script of [
+    'editor-tools',
     'ui',
     'features',
     'selection',

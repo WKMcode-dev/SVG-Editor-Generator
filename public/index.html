@@ -16,16 +16,18 @@
     <header class="app-header">
       <button id="toggleLeft" title="Alternar painel esquerdo">☷</button>
       <div class="brand">
-        <span class="brand-symbol">◇</span> SVG Generator <span class="version">2.1.0</span>
+        <span class="brand-symbol">◇</span> SVG Generator <span class="version">2.2.0</span>
       </div>
       <span id="saveStatus" role="status">Salvo neste dispositivo</span>
       <nav>
         <button id="open">Abrir</button><button id="save">Salvar projeto</button
-        ><button id="export" class="primary">Exportar SVG</button
+        ><button id="export" class="primary" aria-label="Exportar SVG">
+          <span class="desktop-label">Exportar </span>SVG</button
         ><button id="shortcuts" aria-label="Atalhos de teclado">?</button
         ><button id="toggleRight" title="Alternar propriedades">☷</button>
       </nav>
     </header>
+    <button id="panelBackdrop" class="panel-backdrop" aria-label="Fechar painéis" hidden></button>
     <main>
       <aside class="layers-panel">
         <div class="side-rail">
@@ -347,11 +349,43 @@
         <section class="inspector-section">
           <h3>Layout</h3>
           <label class="sub-label">Dimensões</label>
-          <div class="two">
-            <label>W<input id="shapeWidth" type="number" min="0" max="10000" /></label
-            ><label>H<input id="shapeHeight" type="number" min="0" max="10000" /></label>
+          <div class="dimension-controls">
+            <div class="two">
+              <label>W<input id="shapeWidth" type="number" min="0" max="10000" /></label
+              ><label>H<input id="shapeHeight" type="number" min="0" max="10000" /></label>
+            </div>
+            <button
+              id="lockRatio"
+              type="button"
+              class="icon-toggle"
+              title="Manter proporção"
+              aria-label="Manter proporção"
+              aria-pressed="false"
+            ></button>
           </div>
-          <label class="ratio"><input id="lockRatio" type="checkbox" /> Manter proporção</label>
+          <label class="sub-label">Skew · inclinação</label>
+          <div class="two">
+            <label
+              >X °<input
+                id="skewX"
+                type="number"
+                min="-80"
+                max="80"
+                step="1"
+                value="0"
+                title="Aplicar inclinação horizontal em graus"
+            /></label>
+            <label
+              >Y °<input
+                id="skewY"
+                type="number"
+                min="-80"
+                max="80"
+                step="1"
+                value="0"
+                title="Aplicar inclinação vertical em graus"
+            /></label>
+          </div>
         </section>
         <section class="inspector-section">
           <h3>Aparência</h3>
@@ -376,7 +410,17 @@
           </div>
         </section>
         <section class="inspector-section">
-          <h3>Borda</h3>
+          <div class="section-heading">
+            <h3>Borda</h3>
+            <button
+              id="toggleStroke"
+              type="button"
+              class="icon-toggle"
+              title="Desativar borda"
+              aria-label="Desativar borda"
+              aria-pressed="true"
+            ></button>
+          </div>
           <div class="color">
             <input id="stroke" type="color" aria-label="Cor da borda" /><code
               id="strokeCode"

@@ -971,3 +971,329 @@ dialog select {
 .boolean-group > .layer .layer-name {
   font-weight: 600;
 }
+
+.dimension-controls {
+  display: flex;
+  align-items: end;
+  gap: 6px;
+}
+.dimension-controls > .two {
+  flex: 1;
+  min-width: 0;
+}
+.icon-toggle {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 4px;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+}
+.icon-toggle[aria-pressed='true'] {
+  color: #ddd0ff;
+  background: #342b4c;
+  border-color: #615078;
+}
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.section-heading h3 {
+  margin: 0;
+}
+.layer-grip {
+  cursor: grab;
+  touch-action: none;
+  flex-shrink: 0;
+  padding: 4px 0;
+  width: 18px;
+  min-height: 30px;
+  color: #a5a0b7;
+}
+.layer-grip:active {
+  cursor: grabbing;
+}
+.layer-row.is-dragging {
+  opacity: 0.5;
+}
+.layer-row[data-drop-position]::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #c4b5fd;
+  pointer-events: none;
+  z-index: 2;
+}
+.layer-row[data-drop-position='above']::after {
+  top: -2px;
+}
+.layer-row[data-drop-position='below']::after {
+  bottom: -2px;
+}
+.panel-backdrop {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  html,
+  body {
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+  }
+  header.app-header {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr);
+    grid-template-rows: 40px 44px;
+    height: 92px;
+    padding: 4px 8px;
+    gap: 0 6px;
+  }
+  header .brand {
+    font-size: 13px;
+    min-width: 0;
+  }
+  header .brand .version {
+    display: inline;
+    font-size: 9px;
+  }
+  header nav {
+    grid-column: 1 / -1;
+    display: flex;
+    width: 100%;
+    margin: 0;
+    gap: 4px;
+  }
+  header button {
+    touch-action: manipulation;
+    min-height: 40px;
+    padding: 6px;
+    font-size: 11px;
+  }
+  header #open,
+  header #save,
+  header #export {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+  }
+  header .desktop-label {
+    display: none;
+  }
+  header #shortcuts,
+  header #toggleRight {
+    width: 40px;
+    flex-shrink: 0;
+  }
+  body main {
+    grid-template-columns: minmax(0, 1fr) !important;
+    height: calc(100dvh - 92px);
+  }
+  body .workspace,
+  body:not(.left-collapsed) .workspace {
+    grid-column: 1;
+    grid-row: 1;
+    width: 100%;
+    min-width: 0;
+  }
+  .layers-panel,
+  .right {
+    position: fixed;
+    top: 92px;
+    bottom: 0;
+    width: min(88vw, 320px);
+    z-index: 40;
+    transition: transform 0.18s ease;
+    visibility: hidden;
+    display: none;
+  }
+  .layers-panel {
+    left: 0;
+    transform: none;
+  }
+  .right {
+    right: 0;
+    transform: none;
+    overflow-y: auto;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  body.left-collapsed .layers-panel {
+    display: flex;
+    visibility: visible;
+    transform: translateX(0);
+  }
+  body.right-collapsed .right {
+    display: flex;
+    visibility: visible;
+    transform: translateX(0);
+  }
+  .panel-backdrop:not([hidden]) {
+    display: block;
+    position: fixed;
+    inset: 92px 0 0;
+    z-index: 30;
+    border: 0;
+    border-radius: 0;
+    background: #0007;
+  }
+  .code-open .layers-panel {
+    display: flex;
+  }
+  .code-open .right {
+    display: flex;
+  }
+  .code-panel {
+    position: fixed;
+    inset: 92px 0 0;
+    width: 100%;
+    max-width: 100%;
+    z-index: 50;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 12px;
+  }
+  .code-panel h2,
+  .editor-tabs,
+  .code-actions,
+  .editor-options {
+    flex-shrink: 0;
+  }
+  .editor-tabs,
+  .code-actions,
+  .editor-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  #monacoHost,
+  #htmlPreview {
+    width: 100%;
+    min-height: 120px;
+    flex: 1;
+  }
+  .toolbar {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    width: min(340px, calc(100% - 16px));
+    max-width: calc(100% - 16px);
+    height: auto;
+    padding: 6px;
+    gap: 2px;
+    bottom: calc(12px + env(safe-area-inset-bottom));
+  }
+  .toolbar > button,
+  .toolbar .shape-control > button,
+  .toolbar .boolean-control > button {
+    width: 100%;
+    min-width: 0;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 5px;
+  }
+  .toolbar .shape-control,
+  .toolbar .boolean-control {
+    position: static;
+    width: 100%;
+    min-width: 0;
+  }
+  .toolbar #shapeTool {
+    width: 100%;
+    min-width: 0;
+  }
+  .toolbar .tool-separator {
+    display: none;
+  }
+  .toolbar .tool-popup,
+  .toolbar .boolean-options {
+    position: absolute;
+    left: 0;
+    right: auto;
+    top: auto;
+    bottom: calc(100% + 8px);
+    width: min(300px, calc(100vw - 32px));
+    min-width: 0;
+    max-height: min(50dvh, 360px);
+    overflow-y: auto;
+  }
+  .toolbar .tool-popup button,
+  .toolbar .boolean-options button {
+    height: 44px;
+  }
+  .canvas-bottom {
+    bottom: 122px;
+  }
+  footer {
+    min-height: 44px;
+    padding: 4px;
+    padding-bottom: max(4px, env(safe-area-inset-bottom));
+  }
+  .view-controls {
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+    gap: 3px;
+  }
+  .view-controls button,
+  .view-controls label {
+    min-height: 32px;
+  }
+  .view-controls input {
+    width: 18px;
+    height: 18px;
+  }
+  .layer-row {
+    min-height: 44px;
+  }
+  .layer-grip {
+    min-height: 44px;
+    width: 28px;
+  }
+  .layer-toggle {
+    opacity: 1;
+    padding: 8px 4px;
+  }
+  .layer {
+    min-height: 44px;
+    padding: 8px 4px;
+  }
+  .right input,
+  .right select {
+    min-height: 40px;
+    font-size: 16px;
+  }
+  .right .icon-toggle {
+    width: 40px;
+    height: 40px;
+  }
+  .inspector-section {
+    padding: 14px 12px;
+  }
+  dialog {
+    width: calc(100vw - 24px);
+    max-width: calc(100vw - 24px);
+    max-height: calc(100dvh - 24px);
+    padding: 16px;
+  }
+  #toast {
+    max-width: calc(100vw - 24px);
+    bottom: 180px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .layers-panel,
+  .right {
+    transition: none;
+  }
+}

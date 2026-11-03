@@ -1,9 +1,11 @@
-# SVG Editor Generator 2.1.0
+# SVG Editor Generator 2.2.0
 
-- Zoom por Ctrl/Command+scroll cinco vezes menos sensível, com variação máxima de cerca de 13% por evento. Rolagem simples continua movendo o canvas.
-- Guias X/Y para vértices, centros e meios de segmentos, com encaixe antes da grade e indicação rosa nos pontos/segmentos alinhados.
-- Operações booleanas criam grupos editáveis e preservam as formas originais. Expanda nas camadas, selecione uma fonte e arraste para atualizar o resultado sem desfazer.
-- Translação, dimensões, rotação, espelhamento, duplicação, grupos aninhados, desfazer/refazer, JSON, SVG com metadados, presets e autosave preservam a hierarquia.
-- Ctrl+Shift+G desfaz o grupo e recupera as fontes.
-- Grupos sem área continuam disponíveis para edição nas camadas.
-- Limite de 100 camadas contando grupos e fontes. Mídia e linhas abertas continuam fora das operações booleanas.
+- Habilita o recebimento de pinça no WebView2 do Windows, mantendo o zoom no canvas e a escala da interface constante.
+- Teste nativo do executável cobre pinça sintetizada, Ctrl+wheel, rolagem sem zoom e restauração da câmera.
+- Skew horizontal e vertical de -80° a 80°, aplicado à geometria e compatível com grupos booleanos, histórico e exportação.
+- Cantos com alvos invisíveis de 28 px; na edição de pontos, os alvos de resize saem para evitar conflito.
+- Camadas reordenáveis com mouse, alça de toque ou setas na alça. Grupos mantêm sua hierarquia e ordem booleana.
+- Ativar/desativar borda preserva cor e espessura, inclusive no JSON e nos metadados do SVG.
+- Ícone de corrente substitui o checkbox de proporção.
+- Mobile: canvas em largura total, painéis sobrepostos, barra em duas linhas, alças de toque, campos maiores e editor de código em tela cheia.
+- Testes de interface em 360 px, 390 px e desktop; a validação física do driver de cada notebook continua dependendo do dispositivo.
