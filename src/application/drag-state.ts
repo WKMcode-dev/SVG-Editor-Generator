@@ -24,6 +24,7 @@ export type DragState = DragBase &
         shapes: Shape[];
       }
     | { kind: 'pan'; start: Point; view: View; shapes?: Shape[] }
+    | { kind: 'rotate'; center: Point; angle: number; start: Point; shapes: Shape[] }
     | { kind: 'resize'; corner: number; start: Point; shapes: Shape[] }
     | {
         kind: 'parts';
