@@ -147,6 +147,9 @@ const project = (page) =>
       const ids = (await project(mobile)).shapes.map((s) => s.id);
       assert.ok(ids.indexOf('A') > ids.indexOf('C'), 'Touch grip changes stacking');
       await mobile.locator('#toggleLeft').tap();
+      await mobile.waitForFunction(
+        () => document.getElementById('toggleLeft').getAttribute('aria-expanded') === 'false',
+      );
       await mobile.locator('#toolbarCode').tap();
       await mobile.waitForFunction(() => !!window.CodeWorkbench);
       const code = await mobile.locator('#dialog').boundingBox();
@@ -159,8 +162,17 @@ const project = (page) =>
       'PASS stroke, skew, chain ratio, generous corner hit regions, layer drag, and mobile 360/390',
     );
   } catch (error) {
-    if (currentPage && !currentPage.isClosed())
+    if (currentPage && !currentPage.isClosed()) {
+      console.error(
+        await currentPage.evaluate(() => ({
+          width: innerWidth,
+          classes: document.body.className,
+          left: document.getElementById('toggleLeft').getAttribute('aria-expanded'),
+          right: document.getElementById('toggleRight').getAttribute('aria-expanded'),
+        })),
+      );
       await currentPage.screenshot({ path: 'tests/editor-tools-failure.png' }).catch(() => {});
+    }
     throw error;
   } finally {
     await browser.close();

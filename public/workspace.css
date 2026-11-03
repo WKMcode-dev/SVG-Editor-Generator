@@ -1072,6 +1072,7 @@ dialog select {
     gap: 4px;
   }
   header button {
+    touch-action: manipulation;
     min-height: 40px;
     padding: 6px;
     font-size: 11px;
@@ -1084,6 +1085,9 @@ dialog select {
     align-items: center;
     flex: 1;
     min-width: 0;
+  }
+  header .desktop-label {
+    display: none;
   }
   header #shortcuts,
   header #toggleRight {
