@@ -1,4 +1,4 @@
-# SVG Editor Generator 2.2.2
+# SVG Editor Generator 2.2.3
 
 Editor visual de SVG em **TypeScript + Tauri 2/Rust**, com pontos arrastáveis, cantos arredondados, operações booleanas e edição SVG/HTML/CSS no Monaco.
 

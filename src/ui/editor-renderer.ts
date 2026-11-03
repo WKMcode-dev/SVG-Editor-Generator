@@ -278,7 +278,7 @@ export function createRenderer(ctx: RenderContext) {
     old.forEach((node) => node.remove());
     $('handles').replaceChildren();
     $('edgeHighlights').replaceChildren();
-    if (single && !ctx.editingPoints) {
+    if (single) {
       const b = G.bounds(s);
       if (!s.media) {
         const cx = b.x + b.width / 2,
@@ -296,55 +296,69 @@ export function createRenderer(ctx: RenderContext) {
           el('circle', {
             cx,
             cy,
-            r: 7 / ctx.view.z,
+            r: 12 / ctx.view.z,
             fill: '#22222b',
             stroke: '#a78bfa',
             'stroke-width': 1.5 / ctx.view.z,
             'pointer-events': 'none',
           }),
+          el('path', {
+            d: 'M 6 -2 A 6.3 6.3 0 1 0 5 4 M 2 -2 L 6 -2 L 6 -6',
+            transform: `translate(${cx} ${cy}) scale(${1 / ctx.view.z})`,
+            fill: 'none',
+            stroke: '#a78bfa',
+            'stroke-width': 1.8,
+            'stroke-linecap': 'round',
+            'stroke-linejoin': 'round',
+            'pointer-events': 'none',
+            'data-rotation-icon': 'true',
+          }),
           el('circle', {
             cx,
             cy,
-            r: 16 / ctx.view.z,
+            r: 22 / ctx.view.z,
             fill: 'transparent',
             'pointer-events': 'all',
             'data-rotate': 'true',
+            'aria-label': 'Arraste para rotacionar; Shift ajusta em 15°',
+            role: 'img',
             style: 'cursor:grab',
           }),
         );
       }
-      [
-        [b.x, b.y],
-        [b.x + b.width, b.y],
-        [b.x + b.width, b.y + b.height],
-        [b.x, b.y + b.height],
-      ].forEach((q, i) => {
-        const cursor = i % 2 ? 'nesw-resize' : 'nwse-resize';
-        $('edgeHighlights').append(
-          el('rect', {
-            x: q[0] - 4 / ctx.view.z,
-            y: q[1] - 4 / ctx.view.z,
-            width: 8 / ctx.view.z,
-            height: 8 / ctx.view.z,
-            class: 'resize-handle',
-            fill: '#22222b',
-            stroke: '#a78bfa',
-            'stroke-width': 1 / ctx.view.z,
-            'pointer-events': 'none',
-          }),
-          el('rect', {
-            x: q[0] - 14 / ctx.view.z,
-            y: q[1] - 14 / ctx.view.z,
-            width: 28 / ctx.view.z,
-            height: 28 / ctx.view.z,
-            class: 'resize-target',
-            fill: 'transparent',
-            'pointer-events': 'all',
-            'data-resize': i,
-            style: 'cursor:' + cursor,
-          }),
-        );
-      });
+      if (!ctx.editingPoints)
+        [
+          [b.x, b.y],
+          [b.x + b.width, b.y],
+          [b.x + b.width, b.y + b.height],
+          [b.x, b.y + b.height],
+        ].forEach((q, i) => {
+          const cursor = i % 2 ? 'nesw-resize' : 'nwse-resize';
+          $('edgeHighlights').append(
+            el('rect', {
+              x: q[0] - 4 / ctx.view.z,
+              y: q[1] - 4 / ctx.view.z,
+              width: 8 / ctx.view.z,
+              height: 8 / ctx.view.z,
+              class: 'resize-handle',
+              fill: '#22222b',
+              stroke: '#a78bfa',
+              'stroke-width': 1 / ctx.view.z,
+              'pointer-events': 'none',
+            }),
+            el('rect', {
+              x: q[0] - 14 / ctx.view.z,
+              y: q[1] - 14 / ctx.view.z,
+              width: 28 / ctx.view.z,
+              height: 28 / ctx.view.z,
+              class: 'resize-target',
+              fill: 'transparent',
+              'pointer-events': 'all',
+              'data-resize': i,
+              style: 'cursor:' + cursor,
+            }),
+          );
+        });
     }
     if (ctx.selectedIds.size > 1)
       ctx.shapes

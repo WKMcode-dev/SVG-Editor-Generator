@@ -47,6 +47,29 @@ const project = (page) =>
     await page.waitForSelector('.shape');
     await load(page);
     await page.locator('[data-key="A"] .layer').click();
+    // Rotation stays discoverable after entering point editing, without resize targets
+    // stealing vertex hits. The actual pointer drag must change geometry and undo cleanly.
+    assert.equal(await page.locator('[data-rotation-icon]').count(), 1);
+    const selectedShape = page.locator('.shape[data-id="A"]');
+    const shapeBox = await selectedShape.boundingBox();
+    await page.mouse.dblclick(shapeBox.x + shapeBox.width / 2, shapeBox.y + shapeBox.height / 2);
+    assert.ok(
+      await page.locator('.stage').evaluate((el) => el.classList.contains('editing-points')),
+    );
+    assert.equal(await page.locator('[data-resize]').count(), 0);
+    assert.ok(await page.locator('[data-rotate]').isVisible());
+    const rotationBefore = (await project(page)).shapes[0].points;
+    const rotateBox = await page.locator('[data-rotate]').boundingBox();
+    await page.mouse.move(rotateBox.x + rotateBox.width / 2, rotateBox.y + rotateBox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(shapeBox.x + shapeBox.width + 40, shapeBox.y + shapeBox.height / 2, {
+      steps: 8,
+    });
+    await page.mouse.up();
+    assert.notDeepEqual((await project(page)).shapes[0].points, rotationBefore);
+    await page.click('#undo');
+    assert.deepEqual((await project(page)).shapes[0].points, rotationBefore);
+    await page.click('#select');
     assert.equal(await page.locator('#lockRatio').getAttribute('type'), 'button');
     await page.click('#lockRatio');
     assert.equal(await page.locator('#lockRatio').getAttribute('aria-pressed'), 'true');

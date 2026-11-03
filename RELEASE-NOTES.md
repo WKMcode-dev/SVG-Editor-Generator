@@ -1,6 +1,6 @@
-# SVG Editor Generator 2.2.2
+# SVG Editor Generator 2.2.3
 
-- Alça de rotação acima da seleção de uma forma vetorial.
-- Arraste a alça para girar; segure Shift para ajustar em intervalos de 15°.
-- A rotação pode ser desfeita e refeita pelo histórico.
-- O campo de rotação no painel direito permanece disponível para ajustes numéricos.
+- Mantém a alça de rotação visível também durante a edição de pontos.
+- Substitui a bolinha por um ícone de seta circular acima do centro da seleção.
+- Área de toque de 44 px para arrastar a rotação no desktop e no mobile.
+- Teste de interface verifica a alça após duplo clique, rotação por arraste e desfazer.
