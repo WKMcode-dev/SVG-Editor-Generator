@@ -29,7 +29,7 @@ const load = async (page) => {
       }),
     ),
   });
-  await page.waitForSelector('[data-key="A"]');
+  await page.waitForSelector('[data-key="A"]', { state: 'attached' });
 };
 const project = (page) =>
   page.evaluate(() => JSON.parse(localStorage.getItem('svg-editor-project')));
