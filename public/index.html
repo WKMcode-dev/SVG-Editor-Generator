@@ -16,7 +16,7 @@
     <header class="app-header">
       <button id="toggleLeft" title="Alternar painel esquerdo">☷</button>
       <div class="brand">
-        <span class="brand-symbol">◇</span> SVG Generator <span class="version">2.2.3</span>
+        <span class="brand-symbol">◇</span> SVG Generator <span class="version">2.2.4</span>
       </div>
       <span id="saveStatus" role="status">Salvo neste dispositivo</span>
       <nav>
@@ -269,7 +269,7 @@
               <button
                 id="booleanMenu"
                 class="tool"
-                title="Operações booleanas"
+                title="Agrupar e combinar formas"
                 aria-expanded="false"
               >
                 <svg
@@ -285,6 +285,13 @@
                 </svg>
               </button>
               <div id="booleanOptions" class="boolean-options" hidden="">
+                <button data-selection-action="group" title="Agrupar seleção (Ctrl+G)">
+                  Agrupar <kbd>Ctrl+G</kbd>
+                </button>
+                <button data-selection-action="ungroup" title="Desagrupar seleção (Ctrl+Shift+G)">
+                  Desagrupar <kbd>Ctrl+Shift+G</kbd>
+                </button>
+                <hr />
                 <button data-operation="union">União</button
                 ><button data-operation="difference">Subtrair</button
                 ><button data-operation="intersection">Interseção</button

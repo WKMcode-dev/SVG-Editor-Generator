@@ -504,6 +504,20 @@ export function createRenderer(ctx: RenderContext) {
     $('remove').disabled =
       !single || !ctx.editingPoints || !G.vectorShape(s!) || ctx.currentPoints().length <= 3;
     $('playMedia').hidden = s?.type !== 'video' || !!s?.hidden;
+    const groupable = ctx.shapes.filter(
+      (shape) =>
+        ctx.selectedIds.has(shape.id) &&
+        !effectiveLocked(ctx.shapes, shape) &&
+        !effectiveHidden(ctx.shapes, shape),
+    );
+    $('groupSelection').disabled = groupable.length < 2;
+    $('ungroupSelection').disabled = !groupable.some((shape) => shape.group || shape.boolean);
+    document.querySelectorAll<HTMLButtonElement>('[data-selection-action]').forEach((button) => {
+      button.disabled =
+        button.dataset.selectionAction === 'group'
+          ? $('groupSelection').disabled
+          : $('ungroupSelection').disabled;
+    });
     $('toggleLock').disabled = !ctx.selectedIds.size;
     $('toggleVisibility').disabled = !ctx.selectedIds.size;
     $('toggleLock').innerHTML = iconMarkup(s?.locked ? 'lock' : 'unlock');

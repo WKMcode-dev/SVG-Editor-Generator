@@ -17,14 +17,27 @@ const rect = (id, x = 0) => ({
   join: 'miter',
   cut: 0,
 });
-const load = async (page) => {
+const load = async (page, withLine = false) => {
   await page.setInputFiles('#file', {
     name: 'tools.json',
     mimeType: 'application/json',
     buffer: Buffer.from(
       JSON.stringify({
         version: 1,
-        shapes: [rect('A'), rect('B', 160), rect('C', 320)],
+        shapes: [
+          rect('A'),
+          withLine
+            ? {
+                ...rect('B', 160),
+                type: 'line',
+                points: [
+                  [160, 0],
+                  [260, 80],
+                ],
+              }
+            : rect('B', 160),
+          rect('C', 320),
+        ],
         lastSelectedId: 'A',
       }),
     ),
@@ -45,6 +58,42 @@ const project = (page) =>
     });
     await page.goto(editorURL);
     await page.waitForSelector('.shape');
+    await load(page, true);
+    await page.locator('[data-key="A"] .layer').click();
+    await page.keyboard.press('Control+a');
+    await page.click('#booleanMenu');
+    assert.ok(await page.locator('[data-operation="union"]').isDisabled());
+    assert.ok(await page.locator('[data-selection-action="group"]').isEnabled());
+    await page.click('[data-selection-action="group"]');
+    assert.equal(await page.locator('.group-row').count(), 1);
+    const grouped = (await project(page)).shapes;
+    assert.equal(new Set(grouped.map((s) => s.group.id)).size, 1);
+    assert.equal(grouped.find((s) => s.id === 'B').type, 'line');
+    await page.reload();
+    await page.waitForSelector('.group-row');
+    const canvasBox = await page.locator('#canvas').boundingBox();
+    await page.mouse.click(canvasBox.x + 20, canvasBox.y + 20);
+    const memberBox = await page.locator('.shape[data-id="A"]').boundingBox();
+    const startX = memberBox.x + memberBox.width / 2;
+    const startY = memberBox.y + memberBox.height / 2;
+    await page.mouse.move(startX, startY);
+    await page.mouse.down();
+    await page.mouse.move(startX + 35, startY + 25, { steps: 8 });
+    await page.mouse.up();
+    const movedGroup = (await project(page)).shapes;
+    const dx = movedGroup[0].points[0][0] - grouped[0].points[0][0];
+    const dy = movedGroup[0].points[0][1] - grouped[0].points[0][1];
+    assert.ok(Math.abs(dx) + Math.abs(dy) > 1);
+    for (let i = 0; i < grouped.length; i++) {
+      assert.ok(Math.abs(movedGroup[i].points[0][0] - grouped[i].points[0][0] - dx) < 0.01);
+      assert.ok(Math.abs(movedGroup[i].points[0][1] - grouped[i].points[0][1] - dy) < 0.01);
+    }
+    await page.click('#booleanMenu');
+    await page.click('[data-selection-action="ungroup"]');
+    assert.equal(await page.locator('.group-row').count(), 0);
+    assert.ok((await project(page)).shapes.every((s) => !s.group));
+    await page.click('#undo');
+    assert.equal(await page.locator('.group-row').count(), 1);
     await load(page);
     await page.locator('[data-key="A"] .layer').click();
     // Rotation stays discoverable after entering point editing, without resize targets

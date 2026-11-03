@@ -1,6 +1,7 @@
-# SVG Editor Generator 2.2.3
+# SVG Editor Generator 2.2.4
 
-- Mantém a alça de rotação visível também durante a edição de pontos.
-- Substitui a bolinha por um ícone de seta circular acima do centro da seleção.
-- Área de toque de 44 px para arrastar a rotação no desktop e no mobile.
-- Teste de interface verifica a alça após duplo clique, rotação por arraste e desfazer.
+- Agrupar e Desagrupar disponíveis no menu inferior de operações, com atalhos Ctrl+G e Ctrl+Shift+G.
+- Grupos preservam formas, linhas, nomes e estilos originais.
+- Clicar e arrastar um integrante no canvas seleciona e movimenta o grupo inteiro. Alt permite selecionar um integrante; as camadas e o duplo clique continuam permitindo edição individual.
+- Agrupamento persiste no salvamento automático e pode ser desfeito/refeito.
+- Teste de interface cobre grupo misto de linhas e retângulos, reabertura, movimento conjunto, desagrupar e desfazer.

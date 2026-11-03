@@ -38,6 +38,8 @@ export interface UiElementMap {
   redo: HTMLButtonElement;
   booleanMenu: HTMLButtonElement;
   booleanOptions: HTMLElement;
+  groupSelection: HTMLButtonElement;
+  ungroupSelection: HTMLButtonElement;
   grid: HTMLInputElement;
   magnet: HTMLButtonElement;
   gridSettings: HTMLButtonElement;
