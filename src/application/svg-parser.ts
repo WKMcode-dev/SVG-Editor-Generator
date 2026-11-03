@@ -211,8 +211,12 @@ export function parseCode(text: string, shapes: Shape[] = []) {
     const fill = attr('fill');
     s.noFill = fill === 'none' || ['line', 'arrow'].includes(s.type);
     s.fill = color(s.noFill ? null : fill, old?.fill || '#d9d9d9');
-    s.stroke = color(attr('stroke') === 'none' ? null : attr('stroke'), old?.stroke || '#737373');
-    s.strokeWidth = attr('stroke') === 'none' ? 0 : Number(attr('stroke-width') ?? 2);
+    s.noStroke = attr('stroke') === 'none' || node.getAttribute('data-stroke-disabled') === 'true';
+    s.stroke = color(
+      s.noStroke ? node.getAttribute('data-stroke-color') : attr('stroke'),
+      old?.stroke || '#737373',
+    );
+    s.strokeWidth = Number(attr('stroke-width') ?? (s.noStroke ? 1 : 2));
     s.opacity = Number(attr('opacity') ?? 1) * 100;
     s.join = (attr('stroke-linejoin') || 'miter') as Shape['join'];
     return s;

@@ -16,6 +16,7 @@ server.listen(0, '127.0.0.1', async () => {
     'workspace',
     'figma-workspace',
     'live-workspace',
+    'editor-tools',
   ]) {
     const code = await new Promise((resolve) => {
       const child = spawn(process.execPath, [`tests/${script}.cjs`], {

@@ -2,9 +2,25 @@ interface CameraGestures {
   zoom(factor: number, x: number, y: number): void;
   pan(dx: number, dy: number): void;
   cancel(): void;
+  reset?(): void;
 }
 /** Handles precision pinch, legacy touchpad scrolling, touch pointers and WebKit gestures. */
 export function installCanvasGestures(canvas: SVGSVGElement, actions: CameraGestures): void {
+  // WebView2 must enable zoom input routing, but only the editor camera may scale.
+  if ('__TAURI__' in window)
+    document.addEventListener(
+      'keydown',
+      (event) => {
+        if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
+        if (!['+', '=', '-', '0'].includes(event.key)) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        const bounds = canvas.getBoundingClientRect();
+        if (event.key === '0') actions.reset?.();
+        else actions.zoom(event.key === '-' ? 1 / 1.12 : 1.12, bounds.width / 2, bounds.height / 2);
+      },
+      true,
+    );
   let nativeGestureActive = false;
   canvas.addEventListener(
     'wheel',

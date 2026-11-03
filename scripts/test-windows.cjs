@@ -42,6 +42,66 @@ const fs = require('node:fs'),
     await page.waitForFunction(() => !!window.CodeWorkbench, { timeout: 15000 });
     assert.equal(await page.title(), 'SVG Editor Generator');
     assert.equal(await page.locator('.handle').count(), 0);
+    const cameraScale = () =>
+      page
+        .locator('#camera')
+        .evaluate((node) => Number(node.getAttribute('transform').match(/scale\(([^)]+)\)/)[1]));
+    const viewport = await page.evaluate(() => ({
+      width: innerWidth,
+      ratio: devicePixelRatio,
+      scale: visualViewport.scale,
+    }));
+    const canvas = await page.locator('#canvas').boundingBox();
+    const cx = canvas.x + canvas.width / 2,
+      cy = canvas.y + canvas.height / 2;
+    await page.mouse.move(cx, cy);
+    const initialScale = await cameraScale();
+    const cdp = await context.newCDPSession(page);
+    await cdp.send('Input.synthesizePinchGesture', {
+      x: cx,
+      y: cy,
+      scaleFactor: 1.35,
+      relativeSpeed: 600,
+      gestureSourceType: 'mouse',
+    });
+    await page.waitForFunction(
+      (before) =>
+        Number(
+          document
+            .getElementById('camera')
+            .getAttribute('transform')
+            .match(/scale\(([^)]+)\)/)[1],
+        ) > before,
+      initialScale,
+    );
+    const afterPinch = await cameraScale();
+    await page.mouse.wheel(0, 70);
+    await page.waitForTimeout(150);
+    assert.equal(await cameraScale(), afterPinch, 'Two-finger scroll must pan without zoom');
+    await page.keyboard.down('Control');
+    await page.mouse.wheel(0, -120);
+    await page.keyboard.up('Control');
+    await page.waitForFunction(
+      (before) =>
+        Number(
+          document
+            .getElementById('camera')
+            .getAttribute('transform')
+            .match(/scale\(([^)]+)\)/)[1],
+        ) > before,
+      afterPinch,
+    );
+    assert.deepEqual(
+      await page.evaluate(() => ({
+        width: innerWidth,
+        ratio: devicePixelRatio,
+        scale: visualViewport.scale,
+      })),
+      viewport,
+      'Native input changes camera, not page layout',
+    );
+    await page.keyboard.press('Control+0');
+    assert.equal(await cameraScale(), 1);
     await page.click('#editPoints');
     assert.equal(await page.locator('.handle').count(), 4);
     assert.equal(await page.evaluate(() => typeof window.__TAURI__?.core?.invoke), 'function');
@@ -57,7 +117,7 @@ const fs = require('node:fs'),
     fs.mkdirSync('test-results', { recursive: true });
     await page.screenshot({ path: 'test-results/native-startup.png' });
     console.log(
-      'WebView2 nativo: interface, Monaco, pontos, IPC, dimensões e autosave carregados.',
+      'WebView2 nativo: pinça de touchpad, Ctrl+wheel, rolagem, escala da página, interface, Monaco, pontos, IPC e autosave aprovados.',
     );
   } finally {
     if (browser) await browser.close().catch(() => {});

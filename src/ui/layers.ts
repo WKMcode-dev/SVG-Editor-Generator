@@ -6,6 +6,7 @@ interface LayerActions {
   select(ids: string[], multiple: boolean): void;
   update(ids: string[], patch: Partial<Shape>): void;
   renameGroup(id: string, name: string): void;
+  reorder(source: string[], target: string[], above: boolean): void;
 }
 export function createLayers(
   container: HTMLElement,
@@ -14,6 +15,12 @@ export function createLayers(
 ) {
   const rows = new Map<string, HTMLElement>(),
     collapsed = new Set<string>();
+  let dragging: string[] | null = null;
+  function clearDrop() {
+    container
+      .querySelectorAll('[data-drop-position]')
+      .forEach((node) => node.removeAttribute('data-drop-position'));
+  }
   function rename(label: HTMLElement, value: string, save: (name: string) => void) {
     if (label.querySelector('input')) return;
     const input = document.createElement('input');
@@ -60,6 +67,46 @@ export function createLayers(
             .filter((s) => s.group?.id === key.slice(6))
             .map((s) => s.id)
         : [key];
+    node.draggable = true;
+    node.addEventListener('dragstart', (event) => {
+      if ((event.target as Element).closest('input') || node.classList.contains('is-locked')) {
+        event.preventDefault();
+        return;
+      }
+      dragging = ids();
+      event.dataTransfer?.setData('text/plain', JSON.stringify(dragging));
+      if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+      node.classList.add('is-dragging');
+    });
+    node.addEventListener('dragover', (event) => {
+      if (!dragging) return;
+      event.preventDefault();
+      event.stopPropagation();
+      clearDrop();
+      node.dataset.dropPosition =
+        event.clientY < node.getBoundingClientRect().top + node.clientHeight / 2
+          ? 'above'
+          : 'below';
+      if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+      const bounds = container.getBoundingClientRect();
+      if (event.clientY < bounds.top + 28) container.scrollBy(0, -14);
+      if (event.clientY > bounds.bottom - 28) container.scrollBy(0, 14);
+    });
+    node.addEventListener('drop', (event) => {
+      if (!dragging) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const source = dragging;
+      const above = node.dataset.dropPosition === 'above';
+      dragging = null;
+      clearDrop();
+      actions.reorder(source, ids(), above);
+    });
+    node.addEventListener('dragend', () => {
+      dragging = null;
+      clearDrop();
+      node.classList.remove('is-dragging');
+    });
     button.onclick = (e) => actions.select(ids(), e.shiftKey || e.ctrlKey || e.metaKey);
     name.ondblclick = (e) => {
       e.stopPropagation();
@@ -88,7 +135,79 @@ export function createLayers(
       const selected = actions.getShapes().filter((s) => ids().includes(s.id));
       actions.update(ids(), { hidden: !selected.every((s) => s.hidden) });
     };
-    node.append(button, lock, eye);
+    const grip = document.createElement('button');
+    grip.className = 'layer-grip';
+    grip.title = 'Arrastar camada; setas para reordenar';
+    grip.setAttribute('aria-label', 'Reordenar camada');
+    grip.innerHTML = iconMarkup('grip', 16);
+    grip.draggable = false;
+    let pointer: number | null = null,
+      moved = false,
+      startY = 0;
+    const finish = (event: PointerEvent, commit: boolean) => {
+      if (pointer !== event.pointerId) return;
+      const target = document
+        .elementFromPoint(event.clientX, event.clientY)
+        ?.closest<HTMLElement>('.layer-row');
+      const key = target?.dataset.key;
+      const above = target?.dataset.dropPosition === 'above';
+      pointer = null;
+      dragging = null;
+      clearDrop();
+      node.classList.remove('is-dragging');
+      if (commit && moved && key && target !== node) {
+        const targetIds = key.startsWith('group:')
+          ? actions
+              .getShapes()
+              .filter((shape) => shape.group?.id === key.slice(6) && !shape.booleanParent)
+              .map((shape) => shape.id)
+          : [key];
+        actions.reorder(ids(), targetIds, above);
+      }
+    };
+    grip.onpointerdown = (event) => {
+      if (node.classList.contains('is-locked')) return;
+      event.preventDefault();
+      event.stopPropagation();
+      pointer = event.pointerId;
+      startY = event.clientY;
+      moved = false;
+      dragging = ids();
+      grip.setPointerCapture(event.pointerId);
+    };
+    grip.onpointermove = (event) => {
+      if (pointer !== event.pointerId) return;
+      moved ||= Math.abs(event.clientY - startY) > 4;
+      if (!moved) return;
+      node.classList.add('is-dragging');
+      const target = document
+        .elementFromPoint(event.clientX, event.clientY)
+        ?.closest<HTMLElement>('.layer-row');
+      clearDrop();
+      if (target && target !== node)
+        target.dataset.dropPosition =
+          event.clientY < target.getBoundingClientRect().top + target.clientHeight / 2
+            ? 'above'
+            : 'below';
+      const bounds = container.getBoundingClientRect();
+      if (event.clientY < bounds.top + 28) container.scrollBy(0, -14);
+      if (event.clientY > bounds.bottom - 28) container.scrollBy(0, 14);
+    };
+    grip.onpointerup = (event) => finish(event, true);
+    grip.onpointercancel = (event) => finish(event, false);
+    grip.onclick = (event) => event.stopPropagation();
+    grip.onkeydown = (event) => {
+      if (!['ArrowUp', 'ArrowDown'].includes(event.key)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const all = actions.getShapes(),
+        source = all.find((shape) => ids().includes(shape.id));
+      const siblings = all.filter((shape) => shape.booleanParent === source?.booleanParent);
+      const index = siblings.findIndex((shape) => shape.id === source?.id);
+      const target = siblings[index + (event.key === 'ArrowUp' ? 1 : -1)];
+      if (target) actions.reorder(ids(), [target.id], event.key === 'ArrowUp');
+    };
+    node.append(grip, button, lock, eye);
     rows.set(key, node);
     return node;
   }

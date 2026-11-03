@@ -1,3 +1,6 @@
+import { iconMarkup } from '../ui/icons';
+import { skewShape } from '../domain/shape-transforms';
+import { reorderLayers } from '../domain/layer-order';
 import { alignDelta, anchors } from '../domain/alignment';
 import {
   createBoolean,
@@ -238,6 +241,10 @@ const layerView = createLayers($('layers'), $('layerFilter'), {
         editingPoints = false;
         clearParts();
       }
+    }),
+  reorder: (source, target, above) =>
+    change(() => {
+      shapes = reorderLayers(shapes, source, target, above);
     }),
   renameGroup: (id, name) =>
     change(() => {
@@ -636,6 +643,35 @@ document.querySelectorAll<HTMLButtonElement>('[data-type]').forEach(
         selectShape(s.id);
       })),
 );
+$('lockRatio').innerHTML = iconMarkup('unlink', 18);
+$('lockRatio').onclick = () => {
+  const locked = $('lockRatio').getAttribute('aria-pressed') !== 'true';
+  $('lockRatio').setAttribute('aria-pressed', String(locked));
+  $('lockRatio').innerHTML = iconMarkup(locked ? 'link' : 'unlink', 18);
+};
+$('toggleStroke').onclick = () =>
+  change(() => {
+    const selected = selectedShapes();
+    const enabled = selected.every((shape) => shape.noStroke || shape.strokeWidth === 0);
+    selected.forEach((shape) => {
+      shape.noStroke = !enabled;
+      if (enabled && !shape.strokeWidth) shape.strokeWidth = 1;
+    });
+  });
+(['skewX', 'skewY'] as const).forEach((id, axis) => {
+  $(id).onchange = () => {
+    const degrees = Number($(id).value);
+    if (!Number.isFinite(degrees) || Math.abs(degrees) > 80) {
+      $(id).value = '0';
+      return toast('Use inclinação entre -80° e 80°.');
+    }
+    change(() => {
+      selectedShapes().forEach((shape) => skewShape(shape, axis as 0 | 1, degrees));
+      clearParts();
+    });
+    $(id).value = '0';
+  };
+});
 (['name', 'fill', 'stroke', 'strokeWidth', 'opacity', 'join', 'noFill'] as const).forEach(
   (k) =>
     ($(k).onchange = () =>
@@ -690,7 +726,11 @@ $('contour').onchange = () => {
         if (!Number.isFinite(n) || n < (open ? 0 : 1) || n > 10000) return;
         let w = id === 'shapeWidth' ? n : b.width,
           h = id === 'shapeHeight' ? n : b.height;
-        if (($('lockRatio').checked || shiftHeld) && b.width > 0 && b.height > 0) {
+        if (
+          ($('lockRatio').getAttribute('aria-pressed') === 'true' || shiftHeld) &&
+          b.width > 0 &&
+          b.height > 0
+        ) {
           if (id === 'shapeWidth') h = G.round((b.height * n) / b.width);
           else w = G.round((b.width * n) / b.height);
         }
@@ -1104,8 +1144,31 @@ $('assetsTab').onclick = () => {
   $('assetsTab').classList.add('active');
   $('fileTab').classList.remove('active');
 };
-$('toggleLeft').onclick = () => document.body.classList.toggle('left-collapsed');
-$('toggleRight').onclick = () => document.body.classList.toggle('right-collapsed');
+const mobilePanels = window.matchMedia('(max-width: 760px)');
+function syncPanels() {
+  const left = document.body.classList.contains('left-collapsed'),
+    right = document.body.classList.contains('right-collapsed');
+  $('toggleLeft').setAttribute('aria-expanded', String(mobilePanels.matches ? left : !left));
+  $('toggleRight').setAttribute('aria-expanded', String(mobilePanels.matches ? right : !right));
+  $('panelBackdrop').hidden = !(mobilePanels.matches && (left || right));
+}
+function togglePanel(side: 'left' | 'right') {
+  if (mobilePanels.matches)
+    document.body.classList.remove(side === 'left' ? 'right-collapsed' : 'left-collapsed');
+  document.body.classList.toggle(side + '-collapsed');
+  syncPanels();
+}
+$('toggleLeft').onclick = () => togglePanel('left');
+$('toggleRight').onclick = () => togglePanel('right');
+$('panelBackdrop').onclick = () => {
+  document.body.classList.remove('left-collapsed', 'right-collapsed');
+  syncPanels();
+};
+mobilePanels.addEventListener('change', () => {
+  document.body.classList.remove('left-collapsed', 'right-collapsed');
+  syncPanels();
+});
+syncPanels();
 window.addEventListener('vector-storage-error', () => {
   $('saveStatus').textContent = 'Falha ao salvar mídia';
   toast('Não foi possível salvar automaticamente. Exporte um backup JSON.');
@@ -1417,7 +1480,11 @@ $('canvas').onpointermove = (e) => {
       ay = i < 2 ? b.y + b.height : b.y;
     let w = Math.max(1, Math.abs(snap(p[0], 0) - ax)),
       h = Math.max(1, Math.abs(snap(p[1], 1) - ay));
-    if (e.shiftKey || $('lockRatio').checked) {
+    if (
+      (e.shiftKey || $('lockRatio').getAttribute('aria-pressed') === 'true') &&
+      b.width > 0 &&
+      b.height > 0
+    ) {
       const scale = Math.max(w / b.width, h / b.height);
       w = b.width * scale;
       h = b.height * scale;
@@ -1587,6 +1654,7 @@ function zoom(f: number, cx?: number, cy?: number) {
   render();
 }
 installCanvasGestures($('canvas'), {
+  reset: () => zoom(1 / view.z),
   zoom: (f, x, y) => zoom(f, x, y),
   pan: (dx, dy) => {
     view.x += dx;

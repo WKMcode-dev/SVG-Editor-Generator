@@ -221,7 +221,7 @@ export function createRenderer(ctx: RenderContext) {
       }
       for (const [key, value] of Object.entries({
         fill: item.media || item.noFill ? 'none' : item.fill,
-        stroke: item.stroke,
+        stroke: item.noStroke ? 'none' : item.stroke,
         'stroke-width': item.strokeWidth,
         'stroke-linejoin': item.join,
         'stroke-miterlimit': 20,
@@ -278,30 +278,40 @@ export function createRenderer(ctx: RenderContext) {
     old.forEach((node) => node.remove());
     $('handles').replaceChildren();
     $('edgeHighlights').replaceChildren();
-    if (single) {
+    if (single && !ctx.editingPoints) {
       const b = G.bounds(s);
       [
         [b.x, b.y],
         [b.x + b.width, b.y],
         [b.x + b.width, b.y + b.height],
         [b.x, b.y + b.height],
-      ].forEach((q, i) =>
+      ].forEach((q, i) => {
+        const cursor = i % 2 ? 'nesw-resize' : 'nwse-resize';
         $('edgeHighlights').append(
           el('rect', {
-            x: q[0] - 7 / ctx.view.z,
-            y: q[1] - 7 / ctx.view.z,
-            width: 14 / ctx.view.z,
-            height: 14 / ctx.view.z,
+            x: q[0] - 4 / ctx.view.z,
+            y: q[1] - 4 / ctx.view.z,
+            width: 8 / ctx.view.z,
+            height: 8 / ctx.view.z,
             class: 'resize-handle',
-            'pointer-events': 'stroke',
-            'data-resize': i,
-            fill: 'none',
+            fill: '#22222b',
             stroke: '#a78bfa',
             'stroke-width': 1 / ctx.view.z,
-            style: 'cursor:' + (i % 2 ? 'nesw-resize' : 'nwse-resize'),
+            'pointer-events': 'none',
           }),
-        ),
-      );
+          el('rect', {
+            x: q[0] - 14 / ctx.view.z,
+            y: q[1] - 14 / ctx.view.z,
+            width: 28 / ctx.view.z,
+            height: 28 / ctx.view.z,
+            class: 'resize-target',
+            fill: 'transparent',
+            'pointer-events': 'all',
+            'data-resize': i,
+            style: 'cursor:' + cursor,
+          }),
+        );
+      });
     }
     if (ctx.selectedIds.size > 1)
       ctx.shapes
@@ -338,6 +348,9 @@ export function createRenderer(ctx: RenderContext) {
       'shapeWidth',
       'shapeHeight',
       'lockRatio',
+      'skewX',
+      'skewY',
+      'toggleStroke',
       'contour',
     ] as const;
     fields.forEach((id) => ($(id).disabled = !single));
@@ -376,6 +389,13 @@ export function createRenderer(ctx: RenderContext) {
         setFormValue($(k), String(s[k])),
       );
       $('noFill').checked = !!s.noFill;
+      $('toggleStroke').innerHTML = iconMarkup(s.noStroke ? 'eye-off' : 'eye', 18);
+      $('toggleStroke').setAttribute('aria-pressed', String(!s.noStroke && s.strokeWidth > 0));
+      $('toggleStroke').setAttribute('aria-label', s.noStroke ? 'Ativar borda' : 'Desativar borda');
+      $('toggleStroke').title = s.noStroke ? 'Ativar borda' : 'Desativar borda';
+      for (const id of ['stroke', 'strokeWidth', 'join'] as const)
+        $(id).disabled = !!s.noStroke || !!s.media;
+      for (const id of ['skewX', 'skewY'] as const) $(id).disabled = !!s.media;
       $('fillCode').textContent = s.fill;
       $('strokeCode').textContent = s.stroke;
       $('cutValue').textContent = s.cut + ' px';

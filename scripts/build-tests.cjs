@@ -13,6 +13,8 @@ const path = require('node:path');
     'boolean-groups.cjs': 'src/domain/boolean-groups.ts',
     'svg-parser.cjs': 'src/application/svg-parser.ts',
     'alignment.cjs': 'src/domain/alignment.ts',
+    'shape-transforms.cjs': 'src/domain/shape-transforms.ts',
+    'layer-order.cjs': 'src/domain/layer-order.ts',
     'geometry.cjs': 'src/domain/geometry.ts',
     'code-repair.cjs': 'src/domain/code-repair.ts',
     'project-storage.cjs': 'src/infrastructure/project-storage.ts',

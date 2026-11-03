@@ -1,4 +1,5 @@
 export interface UiElementMap {
+  panelBackdrop: HTMLButtonElement;
   mediaFile: HTMLInputElement;
   shapeTool: HTMLButtonElement;
   shapeOptions: HTMLElement;
@@ -60,7 +61,10 @@ export interface UiElementMap {
   name: HTMLInputElement;
   shapeWidth: HTMLInputElement;
   shapeHeight: HTMLInputElement;
-  lockRatio: HTMLInputElement;
+  lockRatio: HTMLButtonElement;
+  toggleStroke: HTMLButtonElement;
+  skewX: HTMLInputElement;
+  skewY: HTMLInputElement;
   fill: HTMLInputElement;
   fillCode: HTMLElement;
   noFill: HTMLInputElement;

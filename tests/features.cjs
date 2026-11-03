@@ -133,7 +133,7 @@ const fixture = (name, x, y, w, h) => ({
       [700, 440],
       [200, 440],
     ]);
-    await page.check('#lockRatio');
+    await page.click('#lockRatio');
     await page.fill('#shapeWidth', '250');
     await page.locator('#shapeWidth').press('Tab');
     assert.equal(await page.locator('#shapeHeight').inputValue(), '150');

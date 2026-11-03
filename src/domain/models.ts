@@ -34,6 +34,7 @@ export interface Shape {
   join: 'miter' | 'round' | 'bevel';
   cut: number;
   noFill?: boolean;
+  noStroke?: boolean;
   polygons?: MultiPolygon;
   basePoints?: Ring;
   radius?: number;
