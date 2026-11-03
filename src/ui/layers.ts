@@ -152,6 +152,7 @@ export function createLayers(
       const key = target?.dataset.key;
       const above = target?.dataset.dropPosition === 'above';
       if (grip.hasPointerCapture(event.pointerId)) grip.releasePointerCapture(event.pointerId);
+      node.draggable = true;
       pointer = null;
       dragging = null;
       clearDrop();
@@ -170,6 +171,7 @@ export function createLayers(
       if (node.classList.contains('is-locked')) return;
       if (event.pointerType !== 'touch') event.preventDefault();
       event.stopPropagation();
+      node.draggable = false;
       pointer = event.pointerId;
       startY = event.clientY;
       moved = false;
