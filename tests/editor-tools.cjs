@@ -105,6 +105,23 @@ const project = (page) =>
       await mobile.goto(editorURL);
       await mobile.waitForSelector('.shape');
       await load(mobile);
+      await mobile.evaluate(() => {
+        window.testPanelEvents = [];
+        for (const type of ['pointerdown', 'pointerup', 'click'])
+          document.addEventListener(
+            type,
+            (event) => {
+              if (event.target.closest?.('#toggleLeft'))
+                window.testPanelEvents.push({
+                  type,
+                  detail: event.detail,
+                  pointer: event.pointerType,
+                  classes: document.body.className,
+                });
+            },
+            true,
+          );
+      });
       assert.ok(
         await mobile.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
         'No horizontal page overflow',
@@ -167,6 +184,7 @@ const project = (page) =>
         await currentPage.evaluate(() => ({
           width: innerWidth,
           classes: document.body.className,
+          trace: window.testPanelEvents,
           left: document.getElementById('toggleLeft').getAttribute('aria-expanded'),
           right: document.getElementById('toggleRight').getAttribute('aria-expanded'),
         })),

@@ -1158,8 +1158,21 @@ function togglePanel(side: 'left' | 'right') {
   document.body.classList.toggle(side + '-collapsed');
   syncPanels();
 }
-$('toggleLeft').onclick = () => togglePanel('left');
-$('toggleRight').onclick = () => togglePanel('right');
+function bindPanelButton(id: 'toggleLeft' | 'toggleRight', side: 'left' | 'right') {
+  let lastTouch = -Infinity;
+  $(id).addEventListener('pointerup', (event) => {
+    if (event.pointerType !== 'touch' && event.pointerType !== 'pen') return;
+    event.preventDefault();
+    lastTouch = performance.now();
+    togglePanel(side);
+  });
+  $(id).onclick = (event) => {
+    if (performance.now() - lastTouch < 600) return;
+    togglePanel(side);
+  };
+}
+bindPanelButton('toggleLeft', 'left');
+bindPanelButton('toggleRight', 'right');
 $('panelBackdrop').onclick = () => {
   document.body.classList.remove('left-collapsed', 'right-collapsed');
   syncPanels();
