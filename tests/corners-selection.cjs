@@ -49,6 +49,7 @@ const assert = require('node:assert/strict');
         (await p.evaluate(() => VectorBridge.svg())).includes('stroke-linejoin="' + join + '"'),
       );
     }
+    await p.keyboard.press('Escape');
     const handle = await p.locator('[data-resize="2"]').boundingBox();
     await p.mouse.move(handle.x + handle.width - 0.5, handle.y + handle.height / 2);
     await p.keyboard.down('Shift');

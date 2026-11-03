@@ -23,10 +23,11 @@ export function skewShape(shape: Shape, axis: 0 | 1, degrees: number): void {
   const box = G.bounds(shape),
     center = axis === 0 ? box.y + box.height / 2 : box.x + box.width / 2;
   const tangent = Math.tan((degrees * Math.PI) / 180);
+  const rounded = (value: number) => G.round(value) || 0;
   G.mapShape(shape, ([x, y]) =>
     axis === 0
-      ? [G.round(x + (y - center) * tangent), y]
-      : [x, G.round(y + (x - center) * tangent)],
+      ? [rounded(x + (y - center) * tangent), y]
+      : [x, rounded(y + (x - center) * tangent)],
   );
   if (!['ellipse', 'line', 'arrow'].includes(shape.type)) shape.type = 'custom';
   shape.cut = 0;
