@@ -88,6 +88,42 @@ const project = (page) =>
       assert.ok(Math.abs(movedGroup[i].points[0][0] - grouped[i].points[0][0] - dx) < 0.01);
       assert.ok(Math.abs(movedGroup[i].points[0][1] - grouped[i].points[0][1] - dy) < 0.01);
     }
+    assert.equal(await page.locator('[data-selection-box]').count(), 1);
+    assert.equal(await page.locator('[data-resize]').count(), 4);
+    const groupWidth = Number(await page.locator('#shapeWidth').inputValue());
+    await page.fill('#shapeWidth', String(groupWidth * 2));
+    await page.locator('#shapeWidth').press('Tab');
+    assert.ok(
+      Math.abs(Number(await page.locator('#shapeWidth').inputValue()) - groupWidth * 2) < 0.01,
+    );
+    const scaled = (await project(page)).shapes;
+    const originalSpacing = movedGroup[1].points[0][0] - movedGroup[0].points[0][0];
+    assert.ok(
+      Math.abs(scaled[1].points[0][0] - scaled[0].points[0][0] - originalSpacing * 2) < 0.01,
+    );
+    await page.click('#undo');
+    const groupBeforeRotation = (await project(page)).shapes;
+    await page.fill('#rotation', '90');
+    await page.locator('#rotation').press('Tab');
+    const groupAfterRotation = (await project(page)).shapes;
+    assert.notDeepEqual(groupAfterRotation[0].points, groupBeforeRotation[0].points);
+    assert.equal(groupAfterRotation[1].type, 'line');
+    await page.click('#undo');
+    assert.deepEqual(
+      (await project(page)).shapes.map((s) => s.points),
+      groupBeforeRotation.map((s) => s.points),
+    );
+    const groupCorner = await page.locator('[data-resize="2"]').boundingBox();
+    await page.mouse.move(groupCorner.x + 14, groupCorner.y + 14);
+    await page.mouse.down();
+    await page.mouse.move(groupCorner.x + 48, groupCorner.y + 40, { steps: 8 });
+    await page.mouse.up();
+    assert.ok(Number(await page.locator('#shapeWidth').inputValue()) > groupWidth);
+    await page.click('#undo');
+    await page.fill('#fill', '#55aaee');
+    await page.locator('#fill').press('Tab');
+    assert.ok((await project(page)).shapes.every((shape) => shape.fill === '#55aaee'));
+    await page.click('#undo');
     await page.click('#booleanMenu');
     await page.click('[data-selection-action="ungroup"]');
     assert.equal(await page.locator('.group-row').count(), 0);

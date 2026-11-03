@@ -1,6 +1,6 @@
 [package]
 name = "svg-editor-generator"
-version = "2.2.4"
+version = "2.3.0"
 description = "Editor visual de SVG"
 authors = ["WKMcode-dev"]
 edition = "2021"

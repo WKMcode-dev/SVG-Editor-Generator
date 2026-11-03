@@ -1,19 +1,9 @@
+import { selectionBounds } from '../domain/selection-transforms';
+export { selectionBounds } from '../domain/selection-transforms';
 import { bounds, mapShape, round } from '../domain/geometry';
 import type { Bounds, Shape } from '../domain/models';
 
 export type Alignment = 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom';
-export function selectionBounds(shapes: Shape[]): Bounds | null {
-  if (!shapes.length) return null;
-  const boxes = shapes.map(bounds);
-  const x = Math.min(...boxes.map((b) => b.x));
-  const y = Math.min(...boxes.map((b) => b.y));
-  return {
-    x,
-    y,
-    width: Math.max(...boxes.map((b) => b.x + b.width)) - x,
-    height: Math.max(...boxes.map((b) => b.y + b.height)) - y,
-  };
-}
 export function translateSelection(shapes: Shape[], dx: number, dy: number): void {
   shapes.forEach((shape) => mapShape(shape, ([x, y]) => [round(x + dx), round(y + dy)]));
 }

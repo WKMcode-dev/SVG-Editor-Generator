@@ -110,3 +110,36 @@ test('Disabled stroke survives SVG/JSON without losing its color and width', asy
     await w.happyDOM.close();
   }
 });
+
+const T = require('../.test-build/selection-transforms.cjs');
+test('Selection resizing scales both members and their spacing around the fixed origin', () => {
+  const items = [rect('a', 10, 20, 100, 80), rect('b', 210, 20, 100, 80)];
+  T.resizeSelection(items, 600, 160);
+  assert.deepEqual(T.selectionBounds(items), { x: 10, y: 20, width: 600, height: 160 });
+  assert.equal(G.bounds(items[1]).x - G.bounds(items[0]).x, 400);
+  T.rotateSelection(items, 90);
+  assert.deepEqual(G.bounds(items[0]), { x: 230, y: -200, width: 160, height: 200 });
+  T.rotateSelection(items, -90);
+  assert.deepEqual(T.selectionBounds(items), { x: 10, y: 20, width: 600, height: 160 });
+  T.flipSelection(items, 0);
+  assert.equal(G.bounds(items[0]).x, 410);
+  assert.equal(G.bounds(items[1]).x, 10);
+});
+test('Rotating a selected ellipse keeps its four anchors and exports cubic curves', () => {
+  const ellipse = { ...rect('e'), type: 'ellipse', points: G.points('ellipse', 0, 0, 100, 60) };
+  T.rotateSelection([ellipse], 30);
+  assert.equal(ellipse.type, 'ellipse');
+  assert.equal(ellipse.points.length, 4);
+  assert.match(G.shapePath(ellipse), / C /);
+});
+test('A shared selection transform carries live boolean sources exactly once', () => {
+  const items = [rect('a'), rect('b', 50), rect('c', 300)];
+  const root = B.createBoolean(items, new Set(['a', 'b']), 'union', 'Union');
+  const sync = B.createBooleanSynchronizer();
+  sync(items);
+  T.resizeSelection([root, items.find((s) => s.id === 'c')], 800, 200);
+  sync(items);
+  assert.equal(G.bounds(items[0]).width, 200);
+  assert.equal(G.bounds(items[1]).x, 100);
+  assert.equal(G.bounds(root).width, 300);
+});

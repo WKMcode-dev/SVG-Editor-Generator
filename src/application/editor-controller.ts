@@ -1,3 +1,4 @@
+import { resizeSelection, rotateSelection, flipSelection } from '../domain/selection-transforms';
 import { iconMarkup } from '../ui/icons';
 import { skewShape } from '../domain/shape-transforms';
 import { reorderLayers } from '../domain/layer-order';
@@ -672,21 +673,22 @@ $('toggleStroke').onclick = () =>
     $(id).value = '0';
   };
 });
-(['name', 'fill', 'stroke', 'strokeWidth', 'opacity', 'join', 'noFill'] as const).forEach(
-  (k) =>
-    ($(k).onchange = () =>
-      change(() => {
-        const s = current();
-        if (!s || s.locked) return;
-        let v: string | boolean | number = k === 'noFill' ? $(k).checked : $(k).value;
-        if (['opacity', 'strokeWidth'].includes(k))
-          v = Math.max(0, Math.min(k === 'opacity' ? 100 : 30, Number(v) || 0));
+(['name', 'fill', 'stroke', 'strokeWidth', 'opacity', 'join', 'noFill'] as const).forEach((k) => {
+  $(k).onchange = () =>
+    change(() => {
+      const items = selectedShapes();
+      if (k === 'name' && items.length !== 1) return;
+      let v: string | boolean | number = k === 'noFill' ? $(k).checked : $(k).value;
+      if (['opacity', 'strokeWidth'].includes(k))
+        v = Math.max(0, Math.min(k === 'opacity' ? 100 : 30, Number(v) || 0));
+      items.forEach((s) => {
         if (k === 'noFill') s.noFill = Boolean(v);
         else if (k === 'opacity' || k === 'strokeWidth') s[k] = Number(v);
         else if (k === 'join') s.join = String(v) as Shape['join'];
         else s[k] = String(v);
-      })),
-);
+      });
+    });
+});
 $('cut').onchange = () =>
   change(() => {
     const s = current();
@@ -714,32 +716,29 @@ $('contour').onchange = () => {
   clearParts();
   render();
 };
-(['shapeWidth', 'shapeHeight'] as const).forEach(
-  (id) =>
-    ($(id).onchange = () =>
-      change(() => {
-        const s = current();
-        if (!s || s.locked) return;
-        const b = G.bounds(s),
-          n = Number(formControl(id).value);
-        const open = ['line', 'arrow'].includes(s.type);
-        if (!Number.isFinite(n) || n < (open ? 0 : 1) || n > 10000) return;
-        let w = id === 'shapeWidth' ? n : b.width,
-          h = id === 'shapeHeight' ? n : b.height;
-        if (
-          ($('lockRatio').getAttribute('aria-pressed') === 'true' || shiftHeld) &&
-          b.width > 0 &&
-          b.height > 0
-        ) {
-          if (id === 'shapeWidth') h = G.round((b.height * n) / b.width);
-          else w = G.round((b.width * n) / b.height);
-        }
-        if ((open ? w < 0 || h < 0 || !(w || h) : w < 1 || h < 1) || w > 10000 || h > 10000)
-          return toast('Dimensões devem ficar entre 1 e 10.000 px.');
-        G.resize(s, w, h);
-        clearParts();
-      })),
-);
+(['shapeWidth', 'shapeHeight'] as const).forEach((id) => {
+  $(id).onchange = () =>
+    change(() => {
+      const items = selectedShapes(),
+        box = selectionBounds(items);
+      const n = Number(formControl(id).value);
+      if (!box || !Number.isFinite(n) || n < 0 || n > 10000) return;
+      let w = id === 'shapeWidth' ? n : box.width;
+      let h = id === 'shapeHeight' ? n : box.height;
+      if (
+        ($('lockRatio').getAttribute('aria-pressed') === 'true' || shiftHeld) &&
+        box.width &&
+        box.height
+      ) {
+        if (id === 'shapeWidth') h = G.round((box.height * n) / box.width);
+        else w = G.round((box.width * n) / box.height);
+      }
+      const onlyOpen = items.every((s) => ['line', 'arrow'].includes(s.type));
+      if ((onlyOpen ? !(w || h) : w < 1 || h < 1) || w > 10000 || h > 10000) return;
+      resizeSelection(items, w, h);
+      clearParts();
+    });
+});
 (['px', 'py'] as const).forEach(
   (id, axis) =>
     ($(id).onchange = () =>
@@ -879,20 +878,12 @@ const selectedShapes = () =>
   );
 (['shapeX', 'shapeY'] as const).forEach((id, axis) => {
   $(id).onchange = () => {
-    const value = Number($(id).value),
-      shape = current();
-    if (
-      !shape ||
-      shape.locked ||
-      shape.hidden ||
-      selectedIds.size !== 1 ||
-      !Number.isFinite(value) ||
-      Math.abs(value) > 100000
-    )
-      return render();
+    const value = Number($(id).value);
+    const items = selectedShapes(),
+      box = selectionBounds(items);
+    if (!box || !Number.isFinite(value) || Math.abs(value) > 100000) return render();
     change(() => {
-      const box = G.bounds(shape);
-      translateSelection([shape], axis === 0 ? value - box.x : 0, axis === 1 ? value - box.y : 0);
+      translateSelection(items, axis === 0 ? value - box.x : 0, axis === 1 ? value - box.y : 0);
       clearParts();
     });
   };
@@ -1020,44 +1011,15 @@ $('toggleVisibility').onclick = () =>
 $('shadow').onchange = () =>
   change(() => selectedShapes().forEach((s) => (s.shadow = $('shadow').checked)));
 (['flipX', 'flipY'] as const).forEach((id, axis) => {
-  $(id).onclick = () =>
-    change(() =>
-      selectedShapes().forEach((s) => {
-        const b = G.bounds(s);
-        if (s.media) {
-          const key = axis ? 'flipY' : 'flipX';
-          s.media[key] = !s.media[key];
-        } else {
-          G.polygonize(s);
-          G.mapShape(
-            s,
-            (p) =>
-              p.map((n, i) =>
-                i === axis ? G.round((axis ? 2 * b.y + b.height : 2 * b.x + b.width) - n) : n,
-              ) as Point,
-          );
-        }
-      }),
-    );
+  $(id).onclick = () => change(() => flipSelection(selectedShapes(), axis as 0 | 1));
 });
 $('rotation').onchange = () => {
   const degrees = Number($('rotation').value);
   if (!Number.isFinite(degrees)) return;
-  change(() =>
-    selectedShapes()
-      .filter((s) => !s.media)
-      .forEach((s) => {
-        G.polygonize(s);
-        const b = G.bounds(s),
-          cx = b.x + b.width / 2,
-          cy = b.y + b.height / 2,
-          a = (degrees * Math.PI) / 180;
-        G.mapShape(s, ([x, y]) => [
-          G.round(cx + (x - cx) * Math.cos(a) - (y - cy) * Math.sin(a)),
-          G.round(cy + (x - cx) * Math.sin(a) + (y - cy) * Math.cos(a)),
-        ]);
-      }),
-  );
+  change(() => {
+    rotateSelection(selectedShapes(), degrees);
+    clearParts();
+  });
   $('rotation').value = '0';
 };
 $('playMedia').onclick = () => {
@@ -1244,24 +1206,23 @@ $('canvas').onpointerdown = (e) => {
     current() &&
     !effectiveLocked(shapes, current()!)
   ) {
-    const saved = G.normalize(structuredClone(current()!)),
-      b = G.bounds(saved);
+    const saved = selectedShapes().map((s) => G.normalize(structuredClone(s))),
+      b = selectionBounds(saved)!;
     const center: Point = [b.x + b.width / 2, b.y + b.height / 2];
     drag = {
       kind: 'rotate',
       center,
       angle: Math.atan2(p[1] - center[1], p[0] - center[0]),
       start: p,
-      shapes: [saved],
+      shapes: saved,
       before: state(),
     };
-  } else if (targetNode.hasAttribute('data-resize') && current() && !current()!.locked) {
-    const saved = G.normalize(structuredClone(current()!));
+  } else if (targetNode.hasAttribute('data-resize') && selectedShapes().length) {
     drag = {
       kind: 'resize',
       corner: Number(targetNode.dataset.resize),
       start: p,
-      shapes: [saved],
+      shapes: selectedShapes().map((s) => G.normalize(structuredClone(s))),
       before: state(),
     };
   } else if (pointTarget) {
@@ -1519,19 +1480,12 @@ $('canvas').onpointermove = (e) => {
     let degrees =
       ((Math.atan2(p[1] - drag.center[1], p[0] - drag.center[0]) - drag.angle) * 180) / Math.PI;
     if (e.shiftKey) degrees = Math.round(degrees / 15) * 15;
-    const angle = (degrees * Math.PI) / 180,
-      [cx, cy] = drag.center;
-    const next = G.normalize(structuredClone(drag.shapes[0]));
-    G.polygonize(next);
-    G.mapShape(next, ([x, y]) => [
-      G.round(cx + (x - cx) * Math.cos(angle) - (y - cy) * Math.sin(angle)),
-      G.round(cy + (x - cx) * Math.sin(angle) + (y - cy) * Math.cos(angle)),
-    ]);
-    shapes[shapes.findIndex((s) => s.id === next.id)] = next;
+    const next = drag.shapes.map((s) => G.normalize(structuredClone(s)));
+    rotateSelection(next, degrees, drag.center);
+    next.forEach((shape) => (shapes[shapes.findIndex((s) => s.id === shape.id)] = shape));
     $('modeStatus').textContent = 'Rotação: ' + G.round(degrees) + '° · Shift: 15°';
   } else if (drag.kind === 'resize') {
-    const saved = drag.shapes[0],
-      b = G.bounds(saved),
+    const b = selectionBounds(drag.shapes)!,
       i = drag.corner,
       ax = i === 0 || i === 3 ? b.x + b.width : b.x,
       ay = i < 2 ? b.y + b.height : b.y;
@@ -1547,12 +1501,9 @@ $('canvas').onpointermove = (e) => {
       h = b.height * scale;
     }
     if (w <= 10000 && h <= 10000) {
-      const next = G.normalize(structuredClone(saved));
-      G.resize(next, w, h);
-      const dx = (i === 0 || i === 3 ? ax - w : ax) - b.x,
-        dy = (i < 2 ? ay - h : ay) - b.y;
-      G.mapShape(next, (q) => [G.round(q[0] + dx), G.round(q[1] + dy)]);
-      shapes[shapes.findIndex((s) => s.id === next.id)] = next;
+      const next = drag.shapes.map((s) => G.normalize(structuredClone(s)));
+      resizeSelection(next, w, h, [i === 0 || i === 3 ? ax - w : ax, i < 2 ? ay - h : ay]);
+      next.forEach((shape) => (shapes[shapes.findIndex((s) => s.id === shape.id)] = shape));
     }
   } else if (drag.kind === 'parts') {
     const start = drag.start,
