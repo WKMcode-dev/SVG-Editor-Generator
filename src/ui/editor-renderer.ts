@@ -280,6 +280,39 @@ export function createRenderer(ctx: RenderContext) {
     $('edgeHighlights').replaceChildren();
     if (single && !ctx.editingPoints) {
       const b = G.bounds(s);
+      if (!s.media) {
+        const cx = b.x + b.width / 2,
+          cy = b.y - 32 / ctx.view.z;
+        $('edgeHighlights').append(
+          el('line', {
+            x1: cx,
+            y1: b.y,
+            x2: cx,
+            y2: cy,
+            stroke: '#a78bfa',
+            'stroke-width': 1 / ctx.view.z,
+            'pointer-events': 'none',
+          }),
+          el('circle', {
+            cx,
+            cy,
+            r: 7 / ctx.view.z,
+            fill: '#22222b',
+            stroke: '#a78bfa',
+            'stroke-width': 1.5 / ctx.view.z,
+            'pointer-events': 'none',
+          }),
+          el('circle', {
+            cx,
+            cy,
+            r: 16 / ctx.view.z,
+            fill: 'transparent',
+            'pointer-events': 'all',
+            'data-rotate': 'true',
+            style: 'cursor:grab',
+          }),
+        );
+      }
       [
         [b.x, b.y],
         [b.x + b.width, b.y],

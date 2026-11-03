@@ -1237,7 +1237,23 @@ $('canvas').onpointerdown = (e) => {
     drag = { kind: 'draw', start: p, shapeType, shapeId: s.id, shapes: [], before };
   } else if (mode === 'hand' || space || e.button === 1)
     drag = { kind: 'pan', start: [e.clientX, e.clientY], view: { ...view } };
-  else if (targetNode.hasAttribute('data-resize') && current() && !current()!.locked) {
+  else if (
+    targetNode.hasAttribute('data-rotate') &&
+    current() &&
+    !effectiveLocked(shapes, current()!)
+  ) {
+    const saved = G.normalize(structuredClone(current()!)),
+      b = G.bounds(saved);
+    const center: Point = [b.x + b.width / 2, b.y + b.height / 2];
+    drag = {
+      kind: 'rotate',
+      center,
+      angle: Math.atan2(p[1] - center[1], p[0] - center[0]),
+      start: p,
+      shapes: [saved],
+      before: state(),
+    };
+  } else if (targetNode.hasAttribute('data-resize') && current() && !current()!.locked) {
     const saved = G.normalize(structuredClone(current()!));
     drag = {
       kind: 'resize',
@@ -1485,6 +1501,20 @@ $('canvas').onpointermove = (e) => {
   } else if (drag.kind === 'pan') {
     view.x = drag.view.x + e.clientX - drag.start[0];
     view.y = drag.view.y + e.clientY - drag.start[1];
+  } else if (drag.kind === 'rotate') {
+    let degrees =
+      ((Math.atan2(p[1] - drag.center[1], p[0] - drag.center[0]) - drag.angle) * 180) / Math.PI;
+    if (e.shiftKey) degrees = Math.round(degrees / 15) * 15;
+    const angle = (degrees * Math.PI) / 180,
+      [cx, cy] = drag.center;
+    const next = G.normalize(structuredClone(drag.shapes[0]));
+    G.polygonize(next);
+    G.mapShape(next, ([x, y]) => [
+      G.round(cx + (x - cx) * Math.cos(angle) - (y - cy) * Math.sin(angle)),
+      G.round(cy + (x - cx) * Math.sin(angle) + (y - cy) * Math.cos(angle)),
+    ]);
+    shapes[shapes.findIndex((s) => s.id === next.id)] = next;
+    $('modeStatus').textContent = 'Rotação: ' + G.round(degrees) + '° · Shift: 15°';
   } else if (drag.kind === 'resize') {
     const saved = drag.shapes[0],
       b = G.bounds(saved),
