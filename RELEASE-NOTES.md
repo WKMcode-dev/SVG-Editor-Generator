@@ -1,5 +1,6 @@
-# SVG Editor Generator 2.2.0
+# SVG Editor Generator 2.2.1
 
+- Impede a ampliação nativa da interface ao pinçar ou usar Ctrl+scroll sobre os painéis; apenas o canvas pode ampliar seu conteúdo.
 - Habilita o recebimento de pinça no WebView2 do Windows, mantendo o zoom no canvas e a escala da interface constante.
 - Teste nativo do executável cobre pinça sintetizada, Ctrl+wheel, rolagem sem zoom e restauração da câmera.
 - Skew horizontal e vertical de -80° a 80°, aplicado à geometria e compatível com grupos booleanos, histórico e exportação.

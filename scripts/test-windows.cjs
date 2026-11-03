@@ -100,6 +100,30 @@ const fs = require('node:fs'),
       viewport,
       'Native input changes camera, not page layout',
     );
+    const sidebarScale = await cameraScale(),
+      sidebar = await page.locator('.right').boundingBox();
+    await page.mouse.move(sidebar.x + 70, sidebar.y + 25);
+    await page.keyboard.down('Control');
+    await page.mouse.wheel(0, -120);
+    await page.keyboard.up('Control');
+    await cdp.send('Input.synthesizePinchGesture', {
+      x: sidebar.x + 70,
+      y: sidebar.y + 25,
+      scaleFactor: 1.2,
+      relativeSpeed: 600,
+      gestureSourceType: 'mouse',
+    });
+    await page.waitForTimeout(100);
+    assert.equal(await cameraScale(), sidebarScale, 'Pinch outside canvas does not change camera');
+    assert.deepEqual(
+      await page.evaluate(() => ({
+        width: innerWidth,
+        ratio: devicePixelRatio,
+        scale: visualViewport.scale,
+      })),
+      viewport,
+      'Pinch over inspector must not zoom the interface',
+    );
     await page.keyboard.press('Control+0');
     assert.equal(await cameraScale(), 1);
     await page.click('#editPoints');

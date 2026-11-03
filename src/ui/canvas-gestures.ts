@@ -21,6 +21,14 @@ export function installCanvasGestures(canvas: SVGSVGElement, actions: CameraGest
       },
       true,
     );
+  if ('__TAURI__' in window)
+    document.addEventListener(
+      'wheel',
+      (event) => {
+        if (event.ctrlKey || event.metaKey) event.preventDefault();
+      },
+      { capture: true, passive: false },
+    );
   let nativeGestureActive = false;
   canvas.addEventListener(
     'wheel',
