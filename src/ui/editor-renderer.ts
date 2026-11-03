@@ -1,3 +1,4 @@
+import { selectionBounds } from '../domain/selection-transforms';
 import { effectiveHidden, effectiveLocked } from '../domain/boolean-groups';
 import { iconMarkup } from './icons';
 import * as G from '../domain/geometry';
@@ -278,9 +279,30 @@ export function createRenderer(ctx: RenderContext) {
     old.forEach((node) => node.remove());
     $('handles').replaceChildren();
     $('edgeHighlights').replaceChildren();
-    if (single) {
-      const b = G.bounds(s);
-      if (!s.media) {
+    const transformItems = ctx.shapes.filter(
+      (shape) =>
+        ctx.selectedIds.has(shape.id) &&
+        !effectiveLocked(ctx.shapes, shape) &&
+        !effectiveHidden(ctx.shapes, shape),
+    );
+    const selectionBox = selectionBounds(transformItems);
+    if (selectionBox && (!ctx.editingPoints || single)) {
+      const b = selectionBox;
+      if (transformItems.length > 1)
+        $('edgeHighlights').append(
+          el('rect', {
+            x: b.x,
+            y: b.y,
+            width: b.width,
+            height: b.height,
+            fill: 'none',
+            stroke: '#a78bfa',
+            'stroke-width': 1 / ctx.view.z,
+            'pointer-events': 'none',
+            'data-selection-box': 'true',
+          }),
+        );
+      if (transformItems.every((shape) => !shape.media)) {
         const cx = b.x + b.width / 2,
           cy = b.y - 32 / ctx.view.z;
         $('edgeHighlights').append(
@@ -481,6 +503,47 @@ export function createRenderer(ctx: RenderContext) {
       $('cutValue').textContent = '—';
       setFormValue($('cut'), String(0));
       $('count').textContent = ctx.shapes.length + ' FORMAS';
+    }
+    $('noFill').indeterminate = false;
+    if (transformItems.length > 1 && transformItems.every((shape) => !shape.media)) {
+      const first = transformItems[0];
+      for (const key of ['fill', 'stroke', 'strokeWidth', 'opacity', 'join'] as const) {
+        $(key).disabled = false;
+        const mixed = transformItems.some((shape) => shape[key] !== first[key]);
+        setFormValue(
+          $(key),
+          mixed && (key === 'strokeWidth' || key === 'opacity') ? '' : String(first[key]),
+        );
+        $(key).title = mixed ? 'Valores diferentes. Alterar aplica a toda a seleção.' : '';
+      }
+      $('fillCode').textContent = transformItems.some((shape) => shape.fill !== first.fill)
+        ? 'Misto'
+        : first.fill;
+      $('strokeCode').textContent = transformItems.some((shape) => shape.stroke !== first.stroke)
+        ? 'Misto'
+        : first.stroke;
+      $('noFill').disabled = false;
+      $('noFill').checked = !!first.noFill;
+      $('noFill').indeterminate = transformItems.some((shape) => !!shape.noFill !== !!first.noFill);
+      $('shadow').disabled = false;
+      $('shadow').checked = transformItems.every((shape) => shape.shadow);
+      $('toggleStroke').disabled = false;
+      const enabled = transformItems.some((shape) => !shape.noStroke && shape.strokeWidth > 0);
+      $('toggleStroke').innerHTML = iconMarkup(enabled ? 'eye' : 'eye-off', 18);
+      $('toggleStroke').setAttribute('aria-pressed', String(enabled));
+    }
+    if (selectionBox) {
+      for (const [id, value] of [
+        ['shapeX', selectionBox.x],
+        ['shapeY', selectionBox.y],
+        ['shapeWidth', selectionBox.width],
+        ['shapeHeight', selectionBox.height],
+      ] as const) {
+        $(id).disabled = false;
+        setFormValue($(id), String(G.round(value)));
+      }
+      for (const id of ['lockRatio', 'flipX', 'flipY'] as const) $(id).disabled = false;
+      $('rotation').disabled = transformItems.some((shape) => !!shape.media);
     }
     $('emptyCanvas').hidden = ctx.shapes.length > 0;
     if (ctx.editingPoints) drawPartControls();
