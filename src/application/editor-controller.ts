@@ -1077,8 +1077,10 @@ $('playMedia').onclick = () => {
   }
 };
 $('groupSelection').onclick = () => {
-  if (!selectedShapes().length) return;
+  if (selectedShapes().length < 2) return;
   change(() => {
+    editingPoints = false;
+    clearParts();
     const group = { id: crypto.randomUUID(), name: 'Grupo' };
     selectedShapes().forEach((s) => (s.group = { ...group }));
   });
@@ -1360,8 +1362,20 @@ $('canvas').onpointerdown = (e) => {
           before: state(),
         };
       } else {
-        if (add) selectShape(id, true);
-        else if (!selectedIds.has(id) || selectedPoints.size || selectedSegments.size)
+        if (!editingPoints && target.group && !e.altKey) {
+          const members = shapes.filter(
+            (s) =>
+              s.group?.id === target.group!.id &&
+              !effectiveLocked(shapes, s) &&
+              !effectiveHidden(shapes, s),
+          );
+          const remove = add && members.every((s) => selectedIds.has(s.id));
+          if (!add) selectedIds.clear();
+          members.forEach((s) => (remove ? selectedIds.delete(s.id) : selectedIds.add(s.id)));
+          selected = selectedIds.has(id) ? id : [...selectedIds].at(-1) || null;
+          clearParts();
+        } else if (add) selectShape(id, true);
+        else if (e.altKey || !selectedIds.has(id) || selectedPoints.size || selectedSegments.size)
           selectShape(id);
         if (!selectedIds.has(id)) {
           render();
@@ -1743,6 +1757,16 @@ $('booleanMenu').onclick = () => {
 document
   .querySelectorAll<HTMLButtonElement>('[data-operation]')
   .forEach((b) => (b.onclick = () => combineShapes(b.dataset.operation as BooleanOperation)));
+document.querySelectorAll<HTMLButtonElement>('[data-selection-action]').forEach((button) => {
+  button.onclick = () => {
+    (button.dataset.selectionAction === 'group'
+      ? $('groupSelection')
+      : $('ungroupSelection')
+    ).click();
+    $('booleanOptions').hidden = true;
+    $('booleanMenu').setAttribute('aria-expanded', 'false');
+  };
+});
 document.addEventListener('click', (e) => {
   if (!(e.target as Element).closest('.boolean-control')) {
     $('booleanOptions').hidden = true;
