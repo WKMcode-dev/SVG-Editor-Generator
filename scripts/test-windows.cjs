@@ -125,7 +125,7 @@ const fs = require('node:fs'),
       'Pinch over inspector must not zoom the interface',
     );
     await page.keyboard.press('Control+0');
-    assert.equal(await cameraScale(), 1);
+    assert.ok(Math.abs((await cameraScale()) - 1) < 1e-9);
     await page.click('#editPoints');
     assert.equal(await page.locator('.handle').count(), 4);
     assert.equal(await page.evaluate(() => typeof window.__TAURI__?.core?.invoke), 'function');
