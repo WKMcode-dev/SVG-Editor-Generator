@@ -6,6 +6,7 @@ server.listen(0, '127.0.0.1', async () => {
   const { spawn } = require('node:child_process');
   let failed = false;
   for (const script of [
+    'editor-tools',
     'ui',
     'features',
     'selection',
@@ -16,7 +17,6 @@ server.listen(0, '127.0.0.1', async () => {
     'workspace',
     'figma-workspace',
     'live-workspace',
-    'editor-tools',
   ]) {
     const code = await new Promise((resolve) => {
       const child = spawn(process.execPath, [`tests/${script}.cjs`], {

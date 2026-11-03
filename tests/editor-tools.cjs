@@ -35,9 +35,11 @@ const project = (page) =>
   page.evaluate(() => JSON.parse(localStorage.getItem('svg-editor-project')));
 (async () => {
   const browser = await chromium.launch({ headless: true });
+  let currentPage;
   try {
     const page = await browser.newPage({ viewport: { width: 1440, height: 940 } }),
       errors = [];
+    currentPage = page;
     page.on('pageerror', (e) => {
       if (e.message !== 'Canceled') errors.push(e.message);
     });
@@ -99,6 +101,7 @@ const project = (page) =>
         hasTouch: true,
       });
       const mobile = await context.newPage();
+      currentPage = mobile;
       await mobile.goto(editorURL);
       await mobile.waitForSelector('.shape');
       await load(mobile);
@@ -155,6 +158,10 @@ const project = (page) =>
     console.log(
       'PASS stroke, skew, chain ratio, generous corner hit regions, layer drag, and mobile 360/390',
     );
+  } catch (error) {
+    if (currentPage && !currentPage.isClosed())
+      await currentPage.screenshot({ path: 'tests/editor-tools-failure.png' }).catch(() => {});
+    throw error;
   } finally {
     await browser.close();
   }
